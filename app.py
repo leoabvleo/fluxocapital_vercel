@@ -37,7 +37,15 @@ else:
     db_name = os.environ.get('DB_NAME', 'db_fluxocapital')
     app.config['SQLALCHEMY_DATABASE_URI'] = f'mysql+mysqlconnector://{db_user}:{db_pass}@{db_host}/{db_name}'
 
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+# Logger detalhado para o Vercel
+if os.environ.get('VERCEL'):
+    logging.info(f"--- INICIANDO NO VERCEL ---")
+    if database_url:
+        # Obscurece a senha para o log
+        safe_url = database_url.split('@')[-1] if '@' in database_url else "URL_INVALIDA"
+        logging.info(f"Conexão detectada: PostgreSQL (host: {safe_url})")
+    else:
+        logging.error("CRÍTICO: DATABASE_URL não encontrada nas variáveis de ambiente!")
 
 from auth import admin_required, superadmin_required, is_superadmin, is_admin_or_superadmin
 from utils import get_current_wallet, get_authorized_query, log_action, log_file, actions_log_file, user_logger
@@ -68,6 +76,14 @@ login_manager.login_message = "Por favor, faça login para acessar esta página.
 login_manager.login_message_category = "info"
 app.register_blueprint(finance_bp)
 app.register_blueprint(funcionarios_bp)
+
+# --- ERROS ---
+@app.errorhandler(500)
+def internal_error(error):
+    logging.error(f"ERRO 500: {error}")
+    import traceback
+    logging.error(traceback.format_exc())
+    return "Erro Interno do Servidor (500). Verifique os Logs do Vercel.", 500
 
 # --- MODELOS --- (Movidos para models.py)
 # Modelos movidos para models.py

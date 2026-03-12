@@ -158,6 +158,8 @@ def inject_carteira():
         'carteiras_cadastro_objs': [c for c in carteiras if c.id != 1],
         'is_superadmin': is_superadmin(),
         'is_admin_or_superadmin': is_admin_or_superadmin(),
+        'now_year': datetime.now().year,
+        'ultima_atualizacao': datetime.now().strftime('%d/%m/%Y %H:%M')
     }
 
 # --- CÁLCULOS ---

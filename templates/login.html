@@ -42,7 +42,6 @@
     <div class="login-card">
         <div class="text-center mb-4">
             <h3 class="fw-bold text-primary">FluxoCapital</h3>
-
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -69,6 +68,12 @@
 
             <button type="submit" class="btn btn-primary w-100">Entrar</button>
         </form>
+
+        <div class="mt-4 text-center text-muted small" style="font-size: 0.75rem;">
+            &copy; {{ now_year }} FluxoCapital. <span class="badge text-bg-secondary" style="font-size: 0.65rem;">Beta Version</span>
+            <br>
+            Último Deploy: {{ ultima_atualizacao }}
+        </div>
     </div>
 
 </body>

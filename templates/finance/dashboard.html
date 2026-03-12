@@ -1,0 +1,700 @@
+{% extends "base.html" %}
+
+{% block title %}Finanças - FluxoCapital{% endblock %}
+
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="fw-bold mb-0 text-primary"><i class="bi bi-wallet2 me-2"></i>Controle Mensal</h2>
+
+        <!-- Seletor de Mês/Ano -->
+        <form action="{{ url_for('finance.dashboard') }}" method="GET" class="d-flex gap-2">
+            <select name="mes" class="form-select form-select-sm fw-bold border-primary text-primary"
+                style="width: auto;" onchange="this.form.submit()">
+                {% for i in range(1, 13) %}
+                <option value="{{ i }}" {% if i==mes_sel %}selected{% endif %}>{{ meses_br[i-1] }}</option>
+                {% endfor %}
+            </select>
+            <select name="ano" class="form-select form-select-sm fw-bold border-primary text-primary"
+                style="width: auto;" onchange="this.form.submit()">
+                {% for y in range(2024, 2031) %}
+                <option value="{{ y }}" {% if y==ano_sel %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    {% if is_admin_or_superadmin %}
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('finance.config_fixas') }}" class="btn btn-outline-primary">
+            <i class="bi bi-gear me-1"></i> Configurar Fixas
+        </a>
+        <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalImportCartao">
+            <i class="bi bi-file-earmark-pdf me-1"></i> Importar Fatura Cartão (PDF)
+        </button>
+        <button class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#modalImportDespesas">
+            <i class="bi bi-file-earmark-excel me-1"></i> Importar Despesas (Excel)
+        </button>
+
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddTransacao">
+            <i class="bi bi-plus-lg me-1"></i> Nova Transação
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Resumo do Mês -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg">
+        <div class="card border-0 shadow-sm bg-success text-white">
+            <div class="card-body p-2 text-center">
+                <h6 class="text-uppercase tiny fw-bold opacity-75 mb-1">Receitas</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ receitas | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body p-2 text-center">
+                <h6 class="text-uppercase tiny fw-bold opacity-75 mb-1">Proventos</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ proventos_total | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card border-0 shadow-sm bg-danger text-white">
+            <div class="card-body p-2 text-center">
+                <h6 class="text-uppercase tiny fw-bold opacity-75 mb-1">Pago</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ despesas_pagas | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card border-0 shadow-sm bg-warning text-dark">
+            <div class="card-body p-2 text-center">
+                <h6 class="text-uppercase tiny fw-bold opacity-75 mb-1">Pendente</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ despesas_pendentes | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg">
+        <div class="card border-0 shadow-sm bg-info text-white">
+            <div class="card-body p-2 text-center">
+                <h6 class="text-uppercase tiny fw-bold opacity-75 mb-1">Saldo</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ saldo | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Coluna RECEITAS -->
+    <div class="col-12 col-xl-5">
+        <div class="card border-0 shadow-sm mb-4 h-100">
+            <div class="card-header bg-success text-white border-0 py-2">
+                <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-arrow-down-circle me-2"></i>RECEITAS</h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0 text-center spreadsheet-table table-sm"
+                        id="table-receitas">
+                        <thead class="bg-light">
+                            <tr class="text-uppercase tiny fw-bold text-muted">
+                                <th style="width: 7%" class="sortable" title="Ordem de exibição"
+                                    onclick="sortTable('table-receitas', 0, 'number')">#</th>
+                                <th style="width: 13%" class="sortable"
+                                    onclick="sortTable('table-receitas', 1, 'date')">DATA</th>
+                                <th style="width: 53%" class="text-start ps-2 sortable"
+                                    onclick="sortTable('table-receitas', 2, 'text')">DESCRIÇÃO</th>
+                                <th style="width: 20%" class="sortable"
+                                    onclick="sortTable('table-receitas', 3, 'number')">VALOR</th>
+                                {% if is_admin_or_superadmin %}
+                                <th style="width: 7%">AÇÃO</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in receitas_list %}
+                            <tr>
+                                <td class="p-0 pos-cell">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="posicao">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="number" name="valor"
+                                            class="pos-input form-control form-control-sm border-0 bg-transparent text-center px-0"
+                                            value="{{ t.posicao or 0 }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="tiny text-muted">{{ t.posicao or 0 }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-0">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="data">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="date" name="valor"
+                                            class="form-control form-control-sm border-0 bg-transparent text-center col-date-input px-1"
+                                            value="{{ t.data.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="col-date-text">{{ t.data.strftime('%d/%m/%Y') }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="text-start ps-2 py-1 p-0">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="descricao">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="text" name="valor"
+                                            class="form-control form-control-sm border-0 bg-transparent fw-bold small p-1 w-100"
+                                            value="{{ t.descricao }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="fw-bold small">{{ t.descricao }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="p-0">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="valor_pago">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="text" name="valor"
+                                            class="form-control form-control-sm border-0 bg-transparent text-center fw-bold text-success col-val-input privacy-value"
+                                            value="{{ t.valor_pago | br_format }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="fw-bold text-success col-val-text privacy-value">R$ {{ t.valor_pago |
+                                        br_format
+                                        }}</span>
+                                    {% endif %}
+                                </td>
+                                {% if is_admin_or_superadmin %}
+                                <td class="py-1">
+                                    <form
+                                        action="{{ url_for('finance.delete_transacao', id=t.id, mes=mes_sel, ano=ano_sel) }}"
+                                        method="POST" onsubmit="return confirm('Excluir?')">
+                                        <button type="submit" class="btn btn-link link-secondary p-0 btn-sm"><i
+                                                class="bi bi-trash tiny"></i></button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% else %}
+                            <tr>
+                                <td colspan="4" class="text-center py-4 text-muted small">Nenhuma receita registrada.
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light-subtle">
+                            <tr class="fw-bold small">
+                                <td colspan="3" class="text-end pe-2">TOTAL RECEITAS:</td>
+                                <td class="text-success text-center privacy-value">R$ {{ receitas | br_format }}</td>
+                                {% if is_admin_or_superadmin %}
+                                <td></td>
+                                {% endif %}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Coluna DESPESAS -->
+    <div class="col-12 col-xl-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div
+                class="card-header bg-danger text-white border-0 py-2 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-arrow-up-circle me-2"></i>DESPESAS</h6>
+                <div class="tiny fw-normal">Total Pago: <span class="privacy-value">R$ {{ despesas_pagas | br_format
+                        }}</span></div>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-bordered align-middle mb-0 text-center spreadsheet-table table-sm"
+                        id="table-despesas">
+                        <thead class="bg-light">
+                            <tr class="text-uppercase tiny fw-bold text-muted">
+                                <th style="width: 7%" class="sortable" title="Ordem de exibição"
+                                    onclick="sortTable('table-despesas', 0, 'number')">#</th>
+                                <th style="width: 11%" class="sortable"
+                                    onclick="sortTable('table-despesas', 1, 'date')">DATA</th>
+                                <th style="width: 12%" class="sortable"
+                                    onclick="sortTable('table-despesas', 2, 'number')">À PAGAR</th>
+                                <th style="width: 38%" class="text-start ps-2 sortable"
+                                    onclick="sortTable('table-despesas', 3, 'text')">DESCRIÇÃO</th>
+                                <th style="width: 13%" class="sortable"
+                                    onclick="sortTable('table-despesas', 4, 'number')">PAGO</th>
+                                {% if is_admin_or_superadmin %}
+                                <th style="width: 7%"></th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for t in despesas_list %}
+                            <tr {% if (t.valor_previsto> (t.valor_pago or 0) or not t.valor_pago or t.valor_pago == 0)
+                                %}class="table-danger" style="background-color: #ffdce0 !important;"{% endif %}>
+                                <!-- Coluna ORDEM -->
+                                <td class="p-0 pos-cell">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="posicao">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="number" name="valor"
+                                            class="pos-input form-control form-control-sm border-0 bg-transparent text-center px-0"
+                                            value="{{ t.posicao or 0 }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="tiny text-muted">{{ t.posicao or 0 }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Coluna DATA -->
+                                <td class="p-0">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="data">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="date" name="valor"
+                                            class="form-control form-control-sm border-0 bg-transparent text-center col-date-input px-1"
+                                            value="{{ t.data.strftime('%Y-%m-%d') }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="col-date-text">{{ t.data.strftime('%d/%m/%Y') }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Coluna À PAGAR -->
+                                <td class="p-0" style="background-color: rgba(0,0,0,0.03);">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="valor_previsto">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="text" name="valor"
+                                            class="form-control form-control-sm border-0 bg-transparent text-center fw-bold text-primary col-val-input privacy-value"
+                                            value="{{ t.valor_previsto | br_format }}" onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span class="fw-bold text-primary col-val-text privacy-value">R$ {{ t.valor_previsto
+                                        | br_format
+                                        }}</span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Coluna DESCRIÇÃO -->
+                                <td class="text-start ps-2 py-1 p-0">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="descricao">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <div class="d-flex align-items-center">
+                                            <input type="text" name="valor"
+                                                class="form-control form-control-sm border-0 bg-transparent fw-bold small p-1 w-100"
+                                                value="{{ t.descricao }}" onchange="this.form.submit()">
+                                            {% if "Fatura Cartão" in t.descricao %}
+                                            <a href="{{ url_for('finance.detalhes_cartao', fatura_mes=t.data.strftime('%Y-%m'), transacao_id=t.id) }}"
+                                                class="ms-1 text-primary tiny" title="Ver Detalhes">
+                                                <i class="bi bi-eye"></i>
+                                            </a>
+                                            {% endif %}
+                                            {% if t.categoria %}
+                                            <span class="text-muted mx-1 tiny"><i
+                                                    class="bi {{ t.categoria.icone }}"></i></span>
+                                            {% endif %}
+                                        </div>
+                                    </form>
+                                    {% else %}
+                                    <div class="d-flex align-items-center">
+                                        <span class="fw-bold small">{{ t.descricao }}</span>
+                                        {% if "Fatura Cartão" in t.descricao %}
+                                        <a href="{{ url_for('finance.detalhes_cartao', fatura_mes=t.data.strftime('%Y-%m'), transacao_id=t.id) }}"
+                                            class="ms-1 text-primary tiny" title="Ver Detalhes">
+                                            <i class="bi bi-eye"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if t.categoria %}
+                                        <span class="text-muted mx-1 tiny"><i
+                                                class="bi {{ t.categoria.icone }}"></i></span>
+                                        {% endif %}
+                                    </div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Coluna PAGO -->
+                                <td class="p-0">
+                                    {% if is_admin_or_superadmin %}
+                                    <form action="{{ url_for('finance.update_valor') }}" method="POST">
+                                        <input type="hidden" name="id" value="{{ t.id }}">
+                                        <input type="hidden" name="campo" value="valor_pago">
+                                        <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                                        <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                                        <input type="text" name="valor"
+                                            class="form-control form-control-sm border-0 bg-transparent text-center fw-bold col-val-input privacy-value {% if t.valor_pago > 0 %}text-success{% else %}text-danger{% endif %}"
+                                            placeholder="0,00"
+                                            value="{% if t.valor_pago > 0 %}{{ t.valor_pago | br_format }}{% endif %}"
+                                            onchange="this.form.submit()">
+                                    </form>
+                                    {% else %}
+                                    <span
+                                        class="fw-bold col-val-text privacy-value {% if t.valor_pago > 0 %}text-success{% else %}text-danger{% endif %}">
+                                        {% if t.valor_pago > 0 %}R$ {{ t.valor_pago | br_format }}{% else %}R$ 0,00{%
+                                        endif %}
+                                    </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Coluna AÇÕES -->
+                                {% if is_admin_or_superadmin %}
+                                <td class="py-1">
+                                    <form
+                                        action="{{ url_for('finance.delete_transacao', id=t.id, mes=mes_sel, ano=ano_sel) }}"
+                                        method="POST" onsubmit="return confirm('Excluir?')">
+                                        <button type="submit" class="btn btn-link link-secondary p-0 btn-sm"><i
+                                                class="bi bi-trash tiny"></i></button>
+                                    </form>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light-subtle">
+                            <tr class="fw-bold small">
+                                <td colspan="2"></td>
+                                <td class="text-primary privacy-value">R$ {{ despesas_total_previsto | br_format }}</td>
+                                <td class="text-end pe-2">TOTAIS (PREV/PAGO):</td>
+                                <td class="text-danger privacy-value">R$ {{ despesas_pagas | br_format }}</td>
+                                {% if is_admin_or_superadmin %}
+                                <td></td>
+                                {% endif %}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Adicionar Transação -->
+<div class="modal fade" id="modalAddTransacao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light py-2">
+                <h6 class="modal-title fw-bold text-uppercase">Nova Transação</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form action="{{ url_for('finance.add_transacao') }}" method="POST">
+                    <input type="hidden" name="mes_sel" value="{{ mes_sel }}">
+                    <input type="hidden" name="ano_sel" value="{{ ano_sel }}">
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Data</label>
+                            <input type="date" name="data" class="form-control form-control-sm" value="{{ hoje }}"
+                                required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Tipo</label>
+                            <select name="tipo" id="selectTipoAdd" class="form-select form-select-sm">
+                                <option value="Despesa">Despesa</option>
+                                <option value="Receita">Receita</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label tiny fw-bold text-uppercase">Descrição</label>
+                        <input type="text" name="descricao" class="form-control form-control-sm"
+                            placeholder="Ex: Mercado, Extra..." required>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Valor (R$)</label>
+                            <input type="text" name="valor" class="form-control form-control-sm" placeholder="0,00"
+                                required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Categoria</label>
+                            <select name="categoria_id" id="selectCategoriaAdd" class="form-select form-select-sm">
+                                <option value="">Sem Categoria</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}">{{ cat.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Carteira</label>
+                            <select name="carteira_id" class="form-select form-select-sm">
+                                {% for c in carteiras_cadastro_objs %}
+                                <option value="{{ c.id }}" {% if c.nome==carteira_atual %}selected{% endif %}>{{ c.nome
+                                    }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold mt-2">SALVAR TRANSAÇÃO</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const selectTipo = document.getElementById("selectTipoAdd");
+        const selectCategoria = document.getElementById("selectCategoriaAdd");
+
+        if (selectTipo && selectCategoria) {
+            function updateDefaultCategory() {
+                const tipo = selectTipo.value;
+                const targetText = tipo === 'Despesa' ? 'Outras Despesas' : 'Outras Receitas';
+
+                // Find the option with this text
+                for (let i = 0; i < selectCategoria.options.length; i++) {
+                    if (selectCategoria.options[i].text === targetText) {
+                        selectCategoria.selectedIndex = i;
+                        break;
+                    }
+                }
+            }
+
+            selectTipo.addEventListener("change", updateDefaultCategory);
+
+            // Set default on load
+            updateDefaultCategory();
+
+            // Set default when modal is shown
+            const modalAddTransacao = document.getElementById('modalAddTransacao');
+            if (modalAddTransacao) {
+                modalAddTransacao.addEventListener('show.bs.modal', function () {
+                    selectTipo.value = "Despesa"; // Reset to Despesa by default
+                    updateDefaultCategory();
+                });
+            }
+        }
+    });
+
+    function sortTable(tableId, n, type) {
+        var table, rows, switching, i, x, y, shouldSwitch, dir, switchcount = 0;
+        table = document.getElementById(tableId);
+        switching = true;
+        dir = "asc";
+        while (switching) {
+            switching = false;
+            rows = table.rows;
+            // Loop through all table rows (except headers and footers)
+            for (i = 1; i < (rows.length - 2); i++) {
+                shouldSwitch = false;
+                x = rows[i].getElementsByTagName("TD")[n];
+                y = rows[i + 1].getElementsByTagName("TD")[n];
+
+                var xValue = getCellValue(x, type, n);
+                var yValue = getCellValue(y, type, n);
+
+                if (dir == "asc") {
+                    if (xValue > yValue) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir == "desc") {
+                    if (xValue < yValue) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+                switchcount++;
+            } else {
+                if (switchcount == 0 && dir == "asc") {
+                    dir = "desc";
+                    switching = true;
+                }
+            }
+        }
+    }
+
+    function getCellValue(td, type, columnIdx) {
+        // Find inputs that contain values for sorting
+        // We look for name="valor" which is common for description, values, and dates now
+        var input = td.querySelector('input[name="valor"]');
+        var val = "";
+
+        if (input) {
+            val = input.value;
+        } else {
+            // Se não for input, tenta pegar o valor do formulário se houver (caso da descrição agora)
+            val = td.textContent.trim();
+        }
+
+        if (type === 'number') {
+            // Se for a coluna de posição (#), apenas parseia o int
+            if (columnIdx === 0) return parseInt(val) || 0;
+
+            // Limpeza robusta de moeda brasileira: remove "R$", remove separador de milhar (ponto) e troca decimal (vírgula) por ponto
+            var cleanVal = val.replace(/R\$\s?/, '').replace(/\./g, '').replace(',', '.');
+            return parseFloat(cleanVal) || 0;
+        }
+        if (type === 'date') {
+            return val; // Formato YYYY-MM-DD ordena bem como string
+        }
+        return val.toLowerCase();
+    }
+</script>
+
+<!-- Modal para Importar Fatura XP/Carrefour -->
+<div class="modal fade" id="modalImportCartao" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light py-2">
+                <h6 class="modal-title fw-bold text-uppercase">Importar Fatura (XP / Carrefour)</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form action="{{ url_for('finance.import_cartao') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label tiny fw-bold text-uppercase">Selecione o PDF da Fatura</label>
+                        <input type="file" name="file" class="form-control form-control-sm" accept=".pdf" required>
+                    </div>
+                    <div class="alert alert-info tiny py-2 mb-3">
+                        <i class="bi bi-info-circle me-1"></i> O sistema irá extrair os gastos e lançar o total na
+                        fatura do mês correspondente.
+                    </div>
+                    <button type="submit" class="btn btn-success w-100 fw-bold">IMPORTAR AGORA</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Importar Despesas / Receitas via Excel -->
+<div class="modal fade" id="modalImportDespesas" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-warning bg-opacity-25 py-2">
+                <h6 class="modal-title fw-bold text-uppercase"><i
+                        class="bi bi-file-earmark-excel me-2 text-success"></i>Importar Despesas/Receitas (Excel)</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form action="{{ url_for('finance.import_despesas') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label tiny fw-bold text-uppercase">Selecione o arquivo Excel (.xlsx)</label>
+                        <input type="file" name="arquivo" class="form-control form-control-sm" accept=".xlsx" required>
+                    </div>
+                    <div class="alert alert-secondary tiny py-2 mb-3">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Colunas esperadas no arquivo:
+                        <ul class="mb-0 mt-1 ps-3">
+                            <li><strong>DESCRIÇÃO</strong> — nome da transação</li>
+                            <li><strong>valor_pago</strong> — valor em reais</li>
+                            <li><strong>DATA PAGAMENTO</strong> — formato DD/MM/AA ou DD/MM/AAAA</li>
+                            <li><strong>TIPO</strong> — <em>Despesa</em> ou <em>Receita</em></li>
+                            <li><strong>Carteira</strong> — nome da carteira (opcional)</li>
+                        </ul>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-warning fw-bold flex-grow-1">IMPORTAR AGORA</button>
+                        <a href="{{ url_for('static', filename='despesas-modelo.xlsx') }}" download
+                            class="btn btn-outline-secondary btn-sm" title="Baixar arquivo modelo">
+                            <i class="bi bi-download me-1"></i> Modelo
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .spreadsheet-table {
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .spreadsheet-table th,
+    .spreadsheet-table td {
+        border: 1px solid #dee2e6 !important;
+        padding: 0.25rem !important;
+    }
+
+    .spreadsheet-table input {
+        box-shadow: none !important;
+    }
+
+    .spreadsheet-table input:focus {
+        background-color: #f8f9fa !important;
+        outline: none;
+    }
+
+    .spreadsheet-table tr:hover {
+        background-color: rgba(0, 0, 0, 0.02);
+    }
+
+    .sortable {
+        cursor: pointer;
+        position: relative;
+    }
+
+    .sortable:hover {
+        background-color: #e9ecef;
+    }
+
+    .tiny {
+        font-size: 0.75rem;
+    }
+
+    /* Coluna # (posição) */
+    .pos-cell {
+        background-color: #f8f9ff;
+    }
+
+    .pos-input {
+        font-size: 0.72rem !important;
+        min-width: 36px;
+        color: #6c757d !important;
+        border-radius: 3px !important;
+    }
+
+    .pos-input:hover,
+    .pos-input:focus {
+        background-color: #e8eeff !important;
+        border: 1px solid #a0b4ff !important;
+        color: #2255cc !important;
+        font-weight: bold !important;
+    }
+
+    /* Colunas de data */
+    .col-date-input,
+    .col-date-text {
+        font-size: 0.72rem !important;
+    }
+
+    /* Colunas de valor */
+    .col-val-input,
+    .col-val-text {
+        font-size: 0.72rem !important;
+    }
+</style>
+{% endblock %}

@@ -1,0 +1,339 @@
+{% extends "base.html" %}
+
+{% block title %}Aportes - FluxoCapital{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="row g-4">
+    {% if is_admin_or_superadmin %}
+    <!-- Novo Aporte e Importar -->
+    <div class="col-md-8">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-plus-circle me-2"></i>Novo Aporte</h5>
+            </div>
+            <div class="card-body">
+                <form action="/cadastrar" method="POST" class="row g-3">
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Categoria</label>
+                        <select name="categoria_id" class="form-select">
+                            {% for cat in categoria_ativos %}
+                            <option value="{{ cat.id }}">{{ cat.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Carteira</label>
+                        <select name="carteira_id" class="form-select">
+                            {% for c in carteiras_cadastro_objs %}
+                            <option value="{{ c.id }}" {% if c.nome==carteira_atual %}selected{% endif %}>{{ c.nome }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">ATIVO</label>
+                        <input type="text" name="ticker" class="form-control" placeholder="Ex: VALE3" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Data</label>
+                        <input type="date" name="data" class="form-control" value="{{ hoje }}" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Qtd</label>
+                        <input type="number" step="any" name="quantidade" class="form-control" placeholder="0" required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Preço Unit. (R$)</label>
+                        <input type="number" step="0.01" name="preco_compra" class="form-control" placeholder="0,00"
+                            required>
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Câmbio</label>
+                        <input type="number" step="0.01" name="cambio" class="form-control" value="1.00">
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary w-100 fw-bold">Cadastrar Aporte</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-success"><i class="bi bi-upload me-2"></i>Importar</h5>
+            </div>
+            <div class="card-body">
+                <form action="/importar_aportes" method="POST" enctype="multipart/form-data">
+                    <div class="mb-3">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Selecione o arquivo
+                            (.csv ou .xlsx)</label>
+                        <input type="file" name="arquivo" class="form-control" accept=".csv, .xlsx" required>
+                    </div>
+                    <div class="mt-4">
+                        <button type="submit" class="btn btn-success w-100 fw-bold">Importar Aportes</button>
+                    </div>
+                </form>
+                <div class="mt-2 small text-muted">
+                    <i class="bi bi-info-circle me-1"></i> Formatos aceitos:<br>
+                    - CSV (ATIVO, TIPO, DATA, VALOR)<br>
+                    - Excel (Modelo aportes_ativos.xlsx)
+                </div>
+                <div class="mt-3">
+                    <a href="{{ url_for('static', filename='aportes-modelo.xlsx') }}" download
+                        class="btn btn-outline-secondary btn-sm w-100">
+                        <i class="bi bi-file-earmark-excel me-1 text-success"></i> Baixar arquivo modelo (.xlsx)
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Tabela Histórico -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-list-ul me-2"></i>Histórico de Compras</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="tabelaAportes" class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">ATIVO</th>
+                                <th>Carteira</th>
+                                <th>Categoria</th>
+                                <th>Data</th>
+                                <th>Qtd</th>
+                                <th>Preço Unit.</th>
+                                <th>Câmbio</th>
+                                <th>Total Pago</th>
+                                {% if is_admin_or_superadmin %}
+                                <th class="text-center pe-4">Ação</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in ativos %}
+                            <tr>
+                                <td class="ps-4">
+                                    <span class="display-mode">
+                                        <a href="{{ url_for('detalhe_ativo', ticker=a.ticker) }}"
+                                            class="text-decoration-none fw-bold text-primary">
+                                            {{ a.ticker }} <i class="bi bi-info-circle small ms-1"
+                                                style="font-size: 0.75rem;"></i>
+                                        </a>
+                                    </span>
+                                    <span class="edit-mode d-none fw-bold text-primary">{{ a.ticker }}</span>
+                                </td>
+                                <td>
+                                    <span class="display-mode">
+                                        <span class="badge bg-primary-subtle text-primary border">{{ a.carteira
+                                            }}</span>
+                                    </span>
+                                    <span class="edit-mode d-none">
+                                        <select class="form-select form-select-sm edit-carteira-id">
+                                            {% for c in carteiras_cadastro_objs %}
+                                            <option value="{{ c.id }}" {% if a.carteira_id==c.id %}selected{% endif %}>
+                                                {{ c.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="display-mode">
+                                        <span class="badge bg-secondary-subtle text-secondary border">
+                                            {{ a.categoria_rel.nome if a.categoria_rel else a.categoria }}
+                                        </span>
+                                    </span>
+                                    <span class="edit-mode d-none">
+                                        <select class="form-select form-select-sm edit-categoria-id">
+                                            {% for cat in categoria_ativos %}
+                                            <option value="{{ cat.id }}" {% if a.categoria_id==cat.id %}selected{% endif
+                                                %}>
+                                                {{ cat.nome }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                    </span>
+                                </td>
+                                <td data-order="{{ a.data_compra }}">
+                                    <span class="display-mode">{{ a.data_compra.strftime('%d/%m/%Y') if a.data_compra
+                                        else '' }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="date" class="form-control form-control-sm edit-data"
+                                            value="{{ a.data_compra.strftime('%Y-%m-%d') if a.data_compra else '' }}">
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="display-mode privacy-value">{{ a.quantidade | clean_qtd }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="number" step="any"
+                                            class="form-control form-control-sm edit-quantidade"
+                                            value="{{ a.quantidade }}">
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="display-mode privacy-value">R$ {{ a.preco_compra | br_format }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="number" step="0.01" class="form-control form-control-sm edit-preco"
+                                            value="{{ a.preco_compra }}">
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="display-mode text-muted small">1.00</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="number" step="0.01"
+                                            class="form-control form-control-sm edit-cambio" value="1.00">
+                                    </span>
+                                </td>
+                                <td class="fw-bold text-success">
+                                    <span class="privacy-value">R$ {{ (a.quantidade * a.preco_compra) | br_format
+                                        }}</span>
+                                </td>
+                                {% if is_admin_or_superadmin %}
+                                <td class="text-center pe-4">
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-primary btn-sm border-0 btn-edit"
+                                            onclick="editRow('{{ a.id }}', this)" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success btn-sm border-0 d-none btn-save"
+                                            onclick="saveRow('{{ a.id }}', this)" title="Salvar">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm border-0 d-none btn-cancel"
+                                            onclick="cancelEdit(this)" title="Cancelar">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                        <a href="/deletar/{{ a.id }}"
+                                            class="btn btn-outline-danger btn-sm border-0 btn-delete"
+                                            onclick="return confirm('Excluir este aporte?');" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light fw-bold">
+                            <tr>
+                                <td colspan="7" class="text-end text-uppercase ps-4">TOTAL:</td>
+                                <td class="text-primary privacy-value" id="foot_total_aportes"></td>
+                                {% if is_admin_or_superadmin %}
+                                <td>-</td>
+                                {% endif %}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function () {
+        var table = $('#tabelaAportes').DataTable({
+            "order": [[2, "desc"]],
+            "pageLength": 15,
+            "stateSave": true,
+            "lengthChange": false,
+            "language": {
+                "sEmptyTable": "Nenhum registro encontrado",
+                "sInfo": "Mostrando de _START_ até _END_ de _TOTAL_ registros",
+                "sInfoEmpty": "Mostrando 0 até 0 de 0 registros",
+                "sInfoFiltered": "(Filtrados de _MAX_ registros)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ".",
+                "sLengthMenu": "_MENU_ resultados por página",
+                "sLoadingRecords": "Carregando...",
+                "sProcessing": "Processando...",
+                "sZeroRecords": "Nenhum registro encontrado",
+                "sSearch": "Pesquisar",
+                "oPaginate": {
+                    "sNext": "Próximo",
+                    "sPrevious": "Anterior",
+                    "sFirst": "Primeiro",
+                    "sLast": "Último"
+                },
+                "oAria": {
+                    "sSortAscending": ": Ordenar colunas de forma ascendente",
+                    "sSortDescending": ": Ordenar colunas de forma descendente"
+                }
+            },
+            "dom": "<'row p-3'<'col-md-6'f><'col-md-6'p>>rt",
+            "footerCallback": function (row, data, start, end, display) {
+                var api = this.api();
+                var parseMonetary = function (v) {
+                    if (typeof v === 'string') {
+                        // Extrair o valor se houver spans ou outras tags HTML
+                        const match = v.match(/R\$\s*([\d\.,-]+)/);
+                        if (match) return parseFloat(match[1].replace(/[^\d,-]/g, '').replace(',', '.'));
+                        return parseFloat(v.replace(/[^\d,-]/g, '').replace(',', '.') || 0);
+                    }
+                    return typeof v === 'number' ? v : 0;
+                };
+                var total = api.column(7, { filter: 'applied' }).data().reduce(function (a, b) {
+                    return parseMonetary(a) + parseMonetary(b);
+                }, 0);
+                $('#foot_total_aportes').html('R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+            }
+        });
+    });
+
+    function editRow(id, btn) {
+        const row = $(btn).closest('tr');
+        row.find('.display-mode').addClass('d-none');
+        row.find('.edit-mode').removeClass('d-none');
+
+        row.find('.btn-edit, .btn-delete').addClass('d-none');
+        row.find('.btn-save, .btn-cancel').removeClass('d-none');
+    }
+
+    function cancelEdit(btn) {
+        const row = $(btn).closest('tr');
+        row.find('.display-mode').removeClass('d-none');
+        row.find('.edit-mode').addClass('d-none');
+
+        row.find('.btn-edit, .btn-delete').removeClass('d-none');
+        row.find('.btn-save, .btn-cancel').addClass('d-none');
+    }
+
+    function saveRow(id, btn) {
+        const row = $(btn).closest('tr');
+        const data = {
+            id: id,
+            ticker: row.find('.edit-mode').first().text(), // Captura o ticker mostrado no edit mode
+            categoria_id: row.find('.edit-categoria-id').val(),
+            carteira_id: row.find('.edit-carteira-id').val(),
+            data: row.find('.edit-data').val(),
+            quantidade: row.find('.edit-quantidade').val(),
+            preco_compra: row.find('.edit-preco').val(),
+            cambio: row.find('.edit-cambio').val()
+        };
+
+        $.post('/editar_aporte', data, function (response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erro ao salvar: ' + (response.error || 'Erro desconhecido'));
+            }
+        }).fail(function () {
+            alert('Erro na requisição ao servidor.');
+        });
+    }
+</script>
+{% endblock %}

@@ -1,0 +1,14 @@
+flask==3.0.0
+flask-sqlalchemy
+flask-login
+mysql-connector-python
+pandas
+requests
+openpyxl
+pdfplumber
+PyPDF2
+numpy<2
+werkzeug
+sqlalchemy
+psycopg2-binary
+python-dotenv

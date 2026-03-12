@@ -1,0 +1,555 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Cabeçalho -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h2 class="fw-bold text-primary mb-0">RELATÓRIO ANUAL - {{ ano }}</h2>
+            <p class="text-muted small fw-bold mb-0"><i class="bi bi-wallet2 me-1"></i>CARTEIRA: {{ carteira_atual }}
+            </p>
+        </div>
+        <div class="d-flex gap-3 align-items-center">
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small fw-bold">CARTEIRAS:</span>
+                <div class="dropdown d-print-none">
+                    <button class="btn btn-white border shadow-sm dropdown-toggle fw-bold text-primary small"
+                        type="button" id="dropdownWallets" data-bs-toggle="dropdown" data-bs-auto-close="outside"
+                        aria-expanded="false">
+                        Selecionar
+                    </button>
+                    <ul class="dropdown-menu shadow" aria-labelledby="dropdownWallets" style="min-width: 200px;">
+                        <li>
+                            <div class="dropdown-item">
+                                <div class="form-check">
+                                    <input class="form-check-input wallet-checkbox" type="checkbox" value="Consolidada"
+                                        id="chkConsolidada" {% if not carteiras_selecionadas or 'Consolidada' in
+                                        carteiras_selecionadas %}checked{% endif %}>
+                                    <label class="form-check-label fw-bold" for="chkConsolidada">CONSOLIDADA</label>
+                                </div>
+                            </div>
+                        </li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        {% for c in todas_carteiras %}
+                        <li>
+                            <div class="dropdown-item">
+                                <div class="form-check">
+                                    <input class="form-check-input wallet-checkbox" type="checkbox" value="{{ c.nome }}"
+                                        id="chk_{{ c.id }}" {% if c.nome in carteiras_selecionadas %}checked{% endif %}>
+                                    <label class="form-check-label" for="chk_{{ c.id }}">{{ c.nome }}</label>
+                                </div>
+                            </div>
+                        </li>
+                        {% endfor %}
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
+                        <li class="p-2 pt-0">
+                            <button class="btn btn-primary btn-sm w-100 mt-1" onclick="updateWallets()">Aplicar</button>
+                        </li>
+                    </ul>
+                </div>
+            </div>
+
+            <script>
+                function changeYear(year) {
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('ano', year);
+                    window.location.href = url.href;
+                }
+
+                function changeFiltro(filtro) {
+                    var url = new URL(window.location.href);
+                    url.searchParams.set('filtro', filtro);
+                    window.location.href = url.href;
+                }
+
+                function updateWallets() {
+                    var url = new URL(window.location.href);
+                    url.searchParams.delete('carteira');
+
+                    var checkboxes = document.querySelectorAll('.wallet-checkbox:checked');
+                    var values = Array.from(checkboxes).map(function (cb) { return cb.value; });
+
+                    // Se Consolidada estiver marcada, ou nada estiver marcado, resetamos para Consolidada
+                    if (values.includes('Consolidada') || values.length === 0) {
+                        url.searchParams.set('carteira', 'Consolidada');
+                    } else {
+                        values.forEach(function (v) { url.searchParams.append('carteira', v); });
+                    }
+
+                    window.location.href = url.href;
+                }
+            </script>
+
+            <div class="d-flex align-items-center gap-2">
+                <span class="text-muted small fw-bold">ANO:</span>
+                <select class="form-select w-auto shadow-sm" id="anoSelect" onchange="changeYear(this.value)">
+                    {% for y in range(2019, 2031) %}
+                    <option value="{{ y }}" {% if y==ano %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="d-flex align-items-center gap-2">
+                <select class="form-select w-auto shadow-sm fw-bold border-primary text-primary" id="filtroSelect"
+                    onchange="changeFiltro(this.value)">
+                    <option value="tudo" {% if filtro=='tudo' %}selected{% endif %}>Tudo Junto</option>
+                    <option value="receitas" {% if filtro=='receitas' %}selected{% endif %}>Apenas Receitas</option>
+                    <option value="despesas" {% if filtro=='despesas' %}selected{% endif %}>Apenas Despesas</option>
+                    <option value="aportes" {% if filtro=='aportes' %}selected{% endif %}>Apenas Aportes</option>
+                </select>
+            </div>
+            <button onclick="window.print()" class="btn btn-primary shadow-sm d-print-none">
+                <i class="bi bi-printer"></i> Imprimir / PDF
+            </button>
+            <a href="{{ url_for('finance.dashboard') }}" class="btn btn-outline-secondary shadow-sm d-print-none">
+                <i class="bi bi-arrow-left"></i> Voltar
+            </a>
+        </div>
+    </div>
+
+    <!-- Tabela Estilo Planilha -->
+    <div class="card border-0 shadow-sm overflow-hidden">
+        <div class="table-responsive" style="max-height: 80vh;">
+            <table class="table table-sm table-bordered align-middle mb-0 text-center spreadsheet-report">
+                <thead class="sticky-top" style="z-index: 20 !important;">
+                    <tr class="text-uppercase small fw-bold" style="background-color: #f1f3f5;">
+                        <th class="text-start sticky-col" style="min-width: 200px; background-color: #f1f3f5;">CATEGORIA
+                            / DESCRIÇÃO</th>
+                        {% for mes in meses_nomes %}
+                        <th style="min-width: 125px; background-color: #f1f3f5;">{{ mes }}</th>
+                        {% endfor %}
+                        <th style="min-width: 140px; background-color: #e0e7ff;" class="text-primary">TOTAL ANO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% if filtro in ['tudo', 'receitas'] %}
+                    <!-- SEÇÃO RECEITAS -->
+                    <tr class="fw-bold" style="background-color: #cfe2ff; color: #084298;">
+                        <td class="text-start sticky-col" style="background-color: #cfe2ff;">RECEITAS</td>
+                        {% for i in range(1, 14) %}
+                        <td style="background-color: #cfe2ff;"></td>
+                        {% endfor %}
+                    </tr>
+
+                    {% for desc in descricoes_receita %}
+                    <tr>
+                        <td class="text-start ps-3 sticky-col bg-white small fw-bold">
+                            {% if desc == 'Investimentos' %}Proventos Recebidos{% else %}{{ desc }}{% endif %}
+                        </td>
+                        {% for mes in range(1, 13) %}
+                        <td class="small privacy-value">{% if receitas_por_desc[desc][mes] > 0 %}R$ {{
+                            receitas_por_desc[desc][mes] |
+                            br_format }}{% else %}-{% endif %}</td>
+                        {% endfor %}
+                        <td class="small fw-bold privacy-value">R$ {{ receitas_por_desc[desc].values() | sum | br_format
+                            }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    {% set odilia_items = ['Odilia - Santa Madra', 'Odilia - HBOL', 'Odilia - COP', 'Odilia - CEMAV'] %}
+                    {% set ns_odilia = namespace(has_any=false, total_geral=0) %}
+                    {% for item in odilia_items %}
+                    {% if item in descricoes_receita %}{% set ns_odilia.has_any = true %}{% endif %}
+                    {% endfor %}
+
+                    {% if ns_odilia.has_any %}
+                    <tr class="fw-bold" style="background-color: #f0f7ff;">
+                        <td class="text-start ps-3 sticky-col small" style="background-color: #f0f7ff; color: #004085;">
+                            SUBTOTAL ODÍLIA</td>
+                        {% for mes in range(1, 13) %}
+                        {% set ns_mes = namespace(soma=0) %}
+                        {% for item in odilia_items %}
+                        {% set ns_mes.soma = ns_mes.soma + (receitas_por_desc[item][mes] or 0) %}
+                        {% endfor %}
+                        <td class="small privacy-value" style="background-color: #f0f7ff; color: #004085;">
+                            {% if ns_mes.soma > 0 %}R$ {{ ns_mes.soma | br_format }}{% else %}-{% endif %}
+                        </td>
+                        {% endfor %}
+                        {% for item in odilia_items %}
+                        {% set ns_odilia.total_geral = ns_odilia.total_geral + (receitas_por_desc[item].values()|sum) %}
+                        {% endfor %}
+                        <td class="small fw-bold privacy-value" style="background-color: #f0f7ff; color: #004085;">R$ {{
+                            ns_odilia.total_geral | br_format }}
+                        </td>
+                    </tr>
+                    {% endif %}
+
+                    <tr class="fw-bold" style="background-color: #e7f1ff; border-top: 2px solid #dee2e6;">
+                        <td class="text-start text-primary sticky-col" style="background-color: #e7f1ff;">TOTAL RECEITAS
+                        </td>
+                        {% for mes in range(1, 13) %}
+                        <td class="text-primary privacy-value" style="background-color: #e7f1ff;">R$ {{
+                            totais_receita[mes] |
+                            br_format }}</td>
+                        {% endfor %}
+                        <td class="text-primary privacy-value" style="background-color: #e7f1ff;">R$ {{
+                            totais_receita.values() | sum
+                            | br_format }}</td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- ESPAÇO -->
+                    {% if filtro == 'tudo' %}
+                    <tr style="height: 15px;">
+                        <td colspan="14" class="bg-white border-0"></td>
+                    </tr>
+                    {% endif %}
+
+                    {% if filtro in ['tudo', 'despesas'] %}
+                    <!-- SEÇÃO DESPESAS -->
+                    <tr class="fw-bold" style="background-color: #f8d7da; color: #842029;">
+                        <td class="text-start sticky-col" style="background-color: #f8d7da;">DESPESAS</td>
+                        {% for i in range(1, 14) %}
+                        <td style="background-color: #f8d7da;"></td>
+                        {% endfor %}
+                    </tr>
+
+                    {% for desc in descricoes_despesa %}
+                    <tr>
+                        <td class="text-start ps-3 sticky-col bg-white small fw-bold">{{ desc }}</td>
+                        {% for mes in range(1, 13) %}
+                        <td class="small privacy-value">{% if despesas_por_desc[desc][mes] > 0 %}R$ {{
+                            despesas_por_desc[desc][mes] |
+                            br_format }}{% else %}-{% endif %}</td>
+                        {% endfor %}
+                        <td class="small fw-bold privacy-value">R$ {{ despesas_por_desc[desc].values() | sum | br_format
+                            }}</td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr class="fw-bold" style="background-color: #fde8e8; border-top: 2px solid #dee2e6;">
+                        <td class="text-start text-danger sticky-col" style="background-color: #fde8e8;">TOTAL DESPESAS
+                        </td>
+                        {% for mes in range(1, 13) %}
+                        <td class="text-danger privacy-value" style="background-color: #fde8e8;">R$ {{
+                            totais_despesa[mes] | br_format
+                            }}</td>
+                        {% endfor %}
+                        <td class="text-danger privacy-value" style="background-color: #fde8e8;">R$ {{
+                            totais_despesa.values() | sum |
+                            br_format }}</td>
+                    </tr>
+
+                    {% if filtro == 'tudo' %}
+                    <tr style="background-color: #fff5f5;">
+                        <td class="text-start ps-3 text-danger sticky-col small" style="background-color: #fff5f5;">%
+                            Despesas / Receita</td>
+                        {% for mes in range(1, 13) %}
+                        <td class="small text-danger privacy-value" style="background-color: #fff5f5;">{% if
+                            totais_receita[mes] > 0
+                            %}{{ ((totais_despesa[mes] /
+                            totais_receita[mes]) * 100) | round(2) }}%{% else %}0,00%{% endif %}</td>
+                        {% endfor %}
+                        <td class="small text-danger fw-bold privacy-value" style="background-color: #fff5f5;">
+                            {% set tr = totais_receita.values() | sum %}
+                            {% if tr > 0 %}{{ ((totais_despesa.values() | sum / tr) * 100) | round(2) }}%{% else
+                            %}0,00%{% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- ESPAÇO -->
+                    {% if filtro == 'tudo' %}
+                    <tr style="height: 15px;">
+                        <td colspan="14" class="bg-white border-0"></td>
+                    </tr>
+                    {% endif %}
+
+                    {% if filtro in ['tudo', 'aportes'] %}
+                    <!-- SEÇÃO INVESTIMENTOS -->
+                    <tr class="fw-bold" style="background-color: #d1e7dd; color: #0f5132;">
+                        <td class="text-start sticky-col" style="background-color: #d1e7dd;">APORTES / INVESTIMENTOS
+                        </td>
+                        {% for i in range(1, 14) %}
+                        <td style="background-color: #d1e7dd;"></td>
+                        {% endfor %}
+                    </tr>
+
+                    {% for ticker in ativos_investimento %}
+                    <tr>
+                        <td class="text-start ps-3 sticky-col bg-white small fw-bold">{{ ticker }}</td>
+                        {% for mes in range(1, 13) %}
+                        <td class="small privacy-value">{% if investimentos_por_desc[ticker][mes] > 0 %}R$ {{
+                            investimentos_por_desc[ticker][mes] |
+                            br_format }}{% else %}-{% endif %}</td>
+                        {% endfor %}
+                        <td class="small fw-bold privacy-value">R$ {{ investimentos_por_desc[ticker].values() | sum |
+                            br_format }}
+                        </td>
+                    </tr>
+                    {% endfor %}
+
+                    <tr class="fw-bold" style="background-color: #e6fffa; border-top: 2px solid #dee2e6;">
+                        <td class="text-start text-success sticky-col" style="background-color: #e6fffa;">TOTAL APORTES
+                        </td>
+                        {% for mes in range(1, 13) %}
+                        <td class="text-success privacy-value" style="background-color: #e6fffa;">R$ {{
+                            totais_investimento[mes] |
+                            br_format }}</td>
+                        {% endfor %}
+                        <td class="text-success privacy-value" style="background-color: #e6fffa;">R$ {{
+                            totais_investimento.values() |
+                            sum | br_format }}</td>
+                    </tr>
+
+                    {% if filtro == 'tudo' %}
+                    <tr style="background-color: #f8fff9;">
+                        <td class="text-start ps-3 text-success sticky-col small" style="background-color: #f8fff9;">%
+                            Investido / Receita</td>
+                        {% for mes in range(1, 13) %}
+                        <td class="small text-success privacy-value" style="background-color: #f8fff9;">{% if
+                            totais_receita[mes] > 0
+                            %}{{ ((totais_investimento[mes] /
+                            totais_receita[mes]) * 100) | round(2) }}%{% else %}0,00%{% endif %}</td>
+                        {% endfor %}
+                        <td class="small text-success fw-bold privacy-value" style="background-color: #f8fff9;">
+                            {% set tr = totais_receita.values() | sum %}
+                            {% if tr > 0 %}{{ ((totais_investimento.values() | sum / tr) * 100) | round(2) }}%{% else
+                            %}0,00%{% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                    {% endif %}
+
+                    <!-- ESPAÇO -->
+                    {% if filtro == 'tudo' %}
+                    <tr style="height: 20px;">
+                        <td colspan="14" class="bg-white border-0"></td>
+                    </tr>
+                    {% endif %}
+
+                    {% if filtro == 'tudo' %}
+                    <!-- SEÇÃO SALDO -->
+                    <tr class="fw-bold" style="border-top: 2px solid #004085;">
+                        <td class="text-start sticky-col" style="background-color: #d1e7ff; color: #004085;">SALDO
+                            LÍQUIDO (CAIXA)</td>
+                        {% for mes in range(1, 13) %}
+                        {% set saldo = totais_receita[mes] - totais_despesa[mes] - totais_investimento[mes] %}
+                        <td class="privacy-value"
+                            style="background-color: #d1e7ff; color: {% if saldo < 0 %}#dc3545{% else %}#004085{% endif %} !important;">
+                            R$ {{ saldo | br_format }}</td>
+                        {% endfor %}
+                        {% set total_saldo = totais_receita.values()|sum - totais_despesa.values()|sum -
+                        totais_investimento.values()|sum %}
+                        <td class="privacy-value"
+                            style="background-color: #d1e7ff; color: {% if total_saldo < 0 %}#dc3545{% else %}#004085{% endif %} !important;">
+                            R$ {{ total_saldo | br_format }}</td>
+                    </tr>
+
+                    <tr class="fw-bold">
+                        <td class="text-start ps-3 sticky-col small" style="background-color: #f0f7ff; color: #6c757d;">
+                            % Saldo / Receita</td>
+                        {% for mes in range(1, 13) %}
+                        <td class="small privacy-value" style="background-color: #f0f7ff; color: #6c757d;">
+                            {% set saldo = totais_receita[mes] - totais_despesa[mes] - totais_investimento[mes] %}
+                            {% if totais_receita[mes] > 0 %}{{ ((saldo / totais_receita[mes]) * 100) | round(2) }}%{%
+                            else %}0,00%{% endif %}
+                        </td>
+                        {% endfor %}
+                        <td class="small fw-bold privacy-value" style="background-color: #f0f7ff; color: #6c757d;">
+                            {% set tr = totais_receita.values() | sum %}
+                            {% set total_saldo = tr - totais_despesa.values()|sum - totais_investimento.values()|sum %}
+                            {% if tr > 0 %}{{ ((total_saldo / tr) * 100) | round(2) }}%{% else %}0,00%{% endif %}
+                        </td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="d-none d-print-block mt-4 text-end small text-muted">
+        <div class="fw-bold">FluxoCapital App</div>
+        <div>Criado e desenvolvido por Leonardo Américo Bezerra Viana</div>
+        <div><small>Gerado em {{ hoje_full }}</small></div>
+    </div>
+
+</div>
+
+<style>
+    .spreadsheet-report th,
+    .spreadsheet-report td {
+        border: 1px solid #dee2e6;
+        padding: 0.6rem 0.4rem;
+        white-space: nowrap;
+    }
+
+    .sticky-col {
+        position: sticky;
+        left: 0;
+        z-index: 10;
+        box-shadow: 2px 0 5px rgba(0, 0, 0, 0.05);
+    }
+
+    .spreadsheet-report thead th {
+        z-index: 20;
+    }
+
+    .table-responsive::-webkit-scrollbar {
+        height: 10px;
+    }
+
+    .table-responsive::-webkit-scrollbar-track {
+        background: #f1f1f1;
+    }
+
+    .table-responsive::-webkit-scrollbar-thumb {
+        background: #ccc;
+        border-radius: 5px;
+        background: #bbb;
+    }
+
+    /* Print Optimizations */
+    @media print {
+
+        /* Wipe out all browser/template margins and paddings */
+        html,
+        body,
+        .container,
+        .container-fluid,
+        .main-content,
+        #main,
+        main {
+            margin: 0 !important;
+            padding: 0 !important;
+            width: 100% !important;
+            max-width: none !important;
+            float: none !important;
+            position: static !important;
+            display: block !important;
+            background-color: white !important;
+        }
+
+        /* Hide UI elements */
+        .navbar,
+        .btn,
+        .form-select,
+        .d-print-none,
+        .sidebar,
+        #sidebar,
+        #nav-header,
+        .navbar-brand,
+        .nav-item,
+        footer,
+        .footer,
+        .d-flex.gap-2.align-items-center>.text-muted.small.fw-bold {
+            display: none !important;
+        }
+
+        /* Force container to start at very top-left */
+        .container-fluid.py-4 {
+            padding-top: 5px !important;
+            padding-left: 0 !important;
+            padding-right: 0 !important;
+        }
+
+        .card {
+            box-shadow: none !important;
+            border: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .table-responsive {
+            overflow: visible !important;
+            max-height: none !important;
+            width: 100% !important;
+        }
+
+        /* Table Formatting - Optimized for 14 columns on A4 Landscape */
+        .spreadsheet-report {
+            width: 100% !important;
+            table-layout: fixed !important;
+            border-collapse: collapse !important;
+            margin: 0 !important;
+        }
+
+        .spreadsheet-report td,
+        .spreadsheet-report th {
+            border: 1px solid #000 !important;
+            padding: 0 1px !important;
+            /* Mínimo de padding horizontal */
+            min-width: 0 !important;
+            word-wrap: break-word !important;
+            overflow: hidden !important;
+            color: #000 !important;
+            font-size: 7.5pt !important;
+            /* Força aqui direto nas células */
+            white-space: normal !important;
+            /* Permite quebrar linha se não couber */
+        }
+
+        /* Distribution (Sum = 100%) */
+        .spreadsheet-report th:first-child,
+        .spreadsheet-report td:first-child {
+            width: 15% !important;
+            /* More space for description */
+        }
+
+        .spreadsheet-report th:not(:first-child),
+        .spreadsheet-report td:not(:first-child) {
+            width: 6.53% !important;
+            /* (100 - 15) / 13 = 6.53% */
+        }
+
+        /* Enforce header */
+        .spreadsheet-report thead {
+            display: table-header-group !important;
+        }
+
+        .spreadsheet-report thead th {
+            background-color: #f0f0f0 !important;
+            color: #000 !important;
+            font-weight: bold !important;
+            -webkit-print-color-adjust: exact !important;
+        }
+
+        /* Disable stickiness */
+        .sticky-top,
+        .sticky-col {
+            position: static !important;
+        }
+
+        /* Color Preservation */
+        * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+        }
+
+        .bg-primary {
+            background-color: #0d6efd !important;
+            -webkit-print-color-adjust: exact !important;
+        }
+
+        .bg-primary td,
+        .bg-primary th {
+            color: white !important;
+        }
+
+        .bg-light {
+            background-color: #eee !important;
+            -webkit-print-color-adjust: exact !important;
+        }
+
+        /* Preserve colored values */
+        [style*="color: #dc3545"] {
+            color: #dc3545 !important;
+        }
+
+        [style*="color: #004085"] {
+            color: #004085 !important;
+        }
+
+
+        @page {
+            size: landscape;
+            margin: 0.2cm;
+            /* Minimal margins */
+        }
+    }
+</style>
+{% endblock %}

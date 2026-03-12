@@ -1,0 +1,329 @@
+{% extends "base.html" %}
+
+{% block title %}Registrar Usuário - FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-10">
+        <!-- Dashboard Header -->
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <div>
+                <h4 class="fw-bold mb-0">Gestão de Usuários</h4>
+                <p class="text-muted small mb-0">Gerencie acessos, senhas e perfis do sistema</p>
+            </div>
+            {% if is_admin_or_superadmin %}
+            <button class="btn btn-primary btn-sm rounded-pill px-3 shadow-sm" data-bs-toggle="collapse"
+                data-bs-target="#collapseNovoUsuario">
+                <i class="bi bi-person-plus-fill me-1"></i> Novo Usuário
+            </button>
+            {% endif %}
+        </div>
+
+        {% if is_admin_or_superadmin %}
+        <!-- Form Novo Usuário (Collapse) -->
+        <div class="collapse mb-4" id="collapseNovoUsuario">
+            <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+                <div class="card-header bg-primary text-white py-2 px-3">
+                    <h6 class="mb-0">Cadastrar Novo Usuário</h6>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        <input type="hidden" name="action" value="cadastrar">
+                        <div class="row g-3">
+                            <div class="col-md-3">
+                                <label for="username" class="form-label x-small fw-medium mb-1">Nome de Usuário</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i
+                                            class="bi bi-person text-muted"></i></span>
+                                    <input type="text" class="form-control border-start-0 bg-light" id="username"
+                                        name="username" required placeholder="Ex: leonardo">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="password" class="form-label x-small fw-medium mb-1">Senha</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i
+                                            class="bi bi-lock text-muted"></i></span>
+                                    <input type="password" class="form-control border-start-0 bg-light" id="password"
+                                        name="password" required placeholder="Mín. 6 caracteres" minlength="6">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="confirmacao" class="form-label x-small fw-medium mb-1">Confirmar
+                                    Senha</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i
+                                            class="bi bi-lock-fill text-muted"></i></span>
+                                    <input type="password" class="form-control border-start-0 bg-light" id="confirmacao"
+                                        name="confirmacao" required placeholder="Repita a senha">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="perfil_id" class="form-label x-small fw-medium mb-1">Perfil</label>
+                                <div class="input-group input-group-sm">
+                                    <span class="input-group-text bg-light border-end-0"><i
+                                            class="bi bi-shield-lock text-muted"></i></span>
+                                    <select class="form-select border-start-0 bg-light" id="perfil_id" name="perfil_id"
+                                        required>
+                                        {% for p in perfis_criacao %}
+                                        <option value="{{ p.id }}">{{ p.nome }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-12 mt-3">
+                                <label class="form-label x-small fw-medium mb-1">Permissões de Carteira</label>
+                                <div class="bg-light p-2 rounded border" style="max-height: 120px; overflow-y: auto;">
+                                    <div class="row row-cols-2 row-cols-md-4 g-2">
+                                        {% for c in carteiras_disponiveis_objs %}
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="carteiras"
+                                                    value="{{ c.id }}" id="new_chk_{{ c.id }}">
+                                                <label class="form-check-label x-small" for="new_chk_{{ c.id }}">{{
+                                                    c.nome }}</label>
+                                            </div>
+                                        </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-3 text-end">
+                            <button type="submit" class="btn btn-primary btn-sm rounded-pill px-4 fw-bold shadow-sm">
+                                <i class="bi bi-check2-circle me-1"></i> Cadastrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- User List Table -->
+        <div class="card shadow-sm border-0 rounded-4 overflow-hidden">
+            <div class="card-header bg-light py-2 px-3">
+                <h6 class="mb-0 text-muted small fw-bold uppercase">Usuários Ativos</h6>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th class="x-small fw-bold text-muted ps-3">ID</th>
+                            <th class="x-small fw-bold text-muted">USUÁRIO</th>
+                            <th class="x-small fw-bold text-muted">PERFIL</th>
+                            <th class="x-small fw-bold text-muted">CARTEIRAS</th>
+                            <th class="x-small fw-bold text-muted">CRIADO EM</th>
+                            <th class="x-small fw-bold text-muted text-center">STATUS</th>
+                            {% if is_admin_or_superadmin %}
+                            <th class="x-small fw-bold text-muted text-end pe-3">AÇÕES</th>
+                            {% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for u in usuarios %}
+                        {% set pode_gerir = is_superadmin or (not u.perfil or u.perfil.nome not in ('SuperAdmin', 'Admin')) %}
+                        <tr>
+                            <td class="ps-3"><span class="badge bg-light text-dark font-monospace x-small border">#{{ u.id }}</span></td>
+                            <td>
+                                <div class="fw-bold">{{ u.username }}</div>
+                                {% if u.id == current_user.id %}
+                                <span class="badge bg-primary-subtle text-primary x-small">Você</span>
+                                {% endif %}
+                                {% if u.perfil and u.perfil.nome == 'SuperAdmin' %}
+                                <span class="badge x-small" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;"><i class="bi bi-crown-fill me-1"></i>SuperAdmin</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if is_admin_or_superadmin and pode_gerir %}
+                                <form method="POST" class="d-inline">
+                                    <input type="hidden" name="action" value="update_perfil">
+                                    <input type="hidden" name="user_id" value="{{ u.id }}">
+                                    <select name="perfil_id"
+                                        class="form-select form-select-sm x-small bg-light border-0 py-0"
+                                        onchange="this.form.submit()" style="width: auto; min-width: 90px;">
+                                        {% for p in perfis %}
+                                        {% if is_superadmin or p.nome not in ('SuperAdmin', 'Admin') %}
+                                        <option value="{{ p.id }}" {% if u.perfil_id==p.id %}selected{% endif %}>{{ p.nome|upper }}</option>
+                                        {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </form>
+                                {% else %}
+                                <span class="badge x-small {% if u.perfil and u.perfil.nome == 'SuperAdmin' %}text-white{% else %}bg-light text-dark border{% endif %}"
+                                    {% if u.perfil and u.perfil.nome == 'SuperAdmin' %}style="background: linear-gradient(135deg, #f59e0b, #d97706);"{% endif %}>
+                                    {{ u.perfil.nome|upper if u.perfil else 'N/A' }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <div class="d-flex flex-wrap gap-1">
+                                    {% if u.perfil and u.perfil.nome == 'SuperAdmin' %}
+                                    <span class="badge bg-warning-subtle text-warning x-small border"><i class="bi bi-star-fill me-1"></i>Todas as Carteiras</span>
+                                    {% else %}
+                                    {% for c in u.carteiras %}
+                                    <span class="badge bg-info-subtle text-info x-small border">{{ c.nome }}</span>
+                                    {% else %}
+                                    <span class="text-muted x-small italic">Nenhuma</span>
+                                    {% endfor %}
+                                    {% endif %}
+                                    {% if is_admin_or_superadmin and pode_gerir and (not u.perfil or u.perfil.nome != 'SuperAdmin') %}
+                                    <button class="btn btn-link btn-sm p-0 ms-1" title="Editar Carteiras"
+                                        onclick="openCarteirasModal('{{ u.id }}', '{{ u.username }}', '{{ u.carteiras|map(attribute='id')|join(',') }}')">
+                                        <i class="bi bi-pencil-square"></i>
+                                    </button>
+                                    {% endif %}
+                                </div>
+                            </td>
+                            <td class="small text-muted">
+                                {{ u.data_criacao.strftime('%d/%m/%Y') if u.data_criacao else '--/--/----' }}
+                            </td>
+                            <td class="text-center">
+                                {% if u.bloqueado %}
+                                <span class="badge bg-danger rounded-pill x-small">Bloqueado</span>
+                                {% else %}
+                                <span class="badge bg-success rounded-pill x-small">Ativo</span>
+                                {% endif %}
+                            </td>
+                            {% if is_admin_or_superadmin %}
+                            <td class="text-end pe-3">
+                                <div class="btn-group btn-group-sm">
+                                    <button class="btn btn-outline-secondary" title="Trocar Senha"
+                                        onclick="openResetModal('{{ u.id }}', '{{ u.username }}')"
+                                        data-bs-toggle="modal" data-bs-target="#modalResetSenha"
+                                        {% if not pode_gerir %}disabled{% endif %}>
+                                        <i class="bi bi-key-fill"></i>
+                                    </button>
+                                    <form method="POST" class="d-inline"
+                                        onsubmit="return confirm('Tem certeza que deseja alterar o status deste usuário?')">
+                                        <input type="hidden" name="action" value="toggle_block">
+                                        <input type="hidden" name="user_id" value="{{ u.id }}">
+                                        <button type="submit"
+                                            class="btn btn-outline-{{ 'success' if u.bloqueado else 'danger' }}"
+                                            title="{{ 'Desbloquear' if u.bloqueado else 'Bloquear' }}"
+                                            {% if u.id==current_user.id or not pode_gerir %}disabled{% endif %}>
+                                            <i class="bi bi-{{ 'unlock-fill' if u.bloqueado else 'slash-circle' }}"></i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <div class="mt-4 text-center">
+            <a href="/" class="btn btn-link text-decoration-none text-muted x-small">
+                <i class="bi bi-arrow-left me-1"></i> Voltar ao Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Reset Senha -->
+<div class="modal fade" id="modalResetSenha" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">Alterar Senha: <span id="resetUsername" class="text-primary"></span>
+                </h6>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="reset_password">
+                    <input type="hidden" name="user_id" id="resetUserId">
+                    <div class="mb-3">
+                        <label for="nova_senha_admin" class="form-label x-small fw-bold">Nova Senha
+                            Administrativa</label>
+                        <input type="password" class="form-control form-control-sm bg-light" name="nova_senha" required
+                            minlength="6" placeholder="Mínimo 6 caracteres">
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light btn-sm rounded-pill px-3"
+                        data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">Confirmar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Gerenciar Carteiras -->
+<div class="modal fade" id="modalCarteiras" tabindex="-1">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow rounded-4">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">Carteiras: <span id="carteirasUsername" class="text-primary"></span>
+                </h6>
+                <button type="button" class="btn-close shadow-none" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST">
+                <div class="modal-body">
+                    <input type="hidden" name="action" value="update_user_carteiras">
+                    <input type="hidden" name="user_id" id="carteirasUserId">
+                    <div class="mb-3">
+                        <label class="form-label x-small fw-bold mb-2">Selecione as carteiras permitidas:</label>
+                        <div class="bg-light p-3 rounded border">
+                            {% for c in carteiras_disponiveis_objs %}
+                            <div class="form-check mb-2">
+                                <input class="form-check-input" type="checkbox" name="carteiras" value="{{ c.id }}"
+                                    id="chk_{{ c.id }}">
+                                <label class="form-check-label small" for="chk_{{ c.id }}">{{ c.nome }}</label>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer border-0 pt-0">
+                    <button type="button" class="btn btn-light btn-sm rounded-pill px-3"
+                        data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary btn-sm rounded-pill px-3 fw-bold">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openResetModal(id, username) {
+        document.getElementById('resetUserId').value = id;
+        document.getElementById('resetUsername').innerText = username;
+    }
+
+    function openCarteirasModal(id, username, carteiraIds) {
+        document.getElementById('carteirasUserId').value = id;
+        document.getElementById('carteirasUsername').innerText = username;
+
+        // Reset as checkboxes
+        document.querySelectorAll('#modalCarteiras .form-check-input').forEach(chk => chk.checked = false);
+
+        // Marca as que o usuário já tem
+        if (carteiraIds) {
+            const ids = carteiraIds.split(',');
+            ids.forEach(cid => {
+                const chk = document.getElementById('chk_' + cid);
+                if (chk) chk.checked = true;
+            });
+        }
+
+        const modal = new bootstrap.Modal(document.getElementById('modalCarteiras'));
+        modal.show();
+    }
+</script>
+
+<style>
+    .x-small {
+        font-size: 0.7rem;
+    }
+
+    .uppercase {
+        text-transform: uppercase;
+        letter-spacing: 0.05rem;
+    }
+</style>
+{% endblock %}

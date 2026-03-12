@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+
+{% block title %}Gráficos Financeiros - FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <h2 class="fw-bold mb-0 text-primary"><i class="bi bi-pie-chart-fill me-2"></i>Gráficos Financeiros</h2>
+
+        <!-- Seletor de Mês/Ano -->
+        <form action="{{ url_for('finance.graficos') }}" method="GET" class="d-flex gap-2">
+            <select name="mes" class="form-select form-select-sm fw-bold border-primary text-primary"
+                style="width: auto;" onchange="this.form.submit()">
+                <option value="0" {% if mes_sel==0 %}selected{% endif %}>Ano Todo</option>
+                {% for i in range(1, 13) %}
+                <option value="{{ i }}" {% if i==mes_sel %}selected{% endif %}>{{ meses_br[i-1] }}</option>
+                {% endfor %}
+            </select>
+            <select name="ano" class="form-select form-select-sm fw-bold border-primary text-primary"
+                style="width: auto;" onchange="this.form.submit()">
+                {% for y in range(2024, 2031) %}
+                <option value="{{ y }}" {% if y==ano_sel %}selected{% endif %}>{{ y }}</option>
+                {% endfor %}
+            </select>
+        </form>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a href="/financas" class="btn btn-outline-primary">
+            <i class="bi bi-wallet2 me-1"></i> Voltar ao Controle
+        </a>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Gráfico de Despesas por Categoria -->
+    <div class="col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-arrow-up-circle-fill text-danger me-2"></i>
+                <h5 class="mb-0 fw-bold">Despesas por Categoria</h5>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center p-3"
+                style="min-height: 400px;">
+                <div id="chart_despesas" style="width: 100%; height: 350px;"></div>
+                <div id="no_data_despesas" class="text-muted d-none">Nenhuma despesa para este período.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Receitas por Categoria -->
+    <div class="col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-arrow-down-circle-fill text-success me-2"></i>
+                <h5 class="mb-0 fw-bold">Receitas por Categoria</h5>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center p-3"
+                style="min-height: 400px;">
+                <div id="chart_receitas" style="width: 100%; height: 350px;"></div>
+                <div id="no_data_receitas" class="text-muted d-none">Nenhuma receita para este período.</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráfico de Gastos Cartão por Categoria -->
+    <div class="col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-credit-card-fill text-warning me-2"></i>
+                <h5 class="mb-0 fw-bold">Gastos Cartão</h5>
+            </div>
+            <div class="card-body d-flex flex-column align-items-center justify-content-center p-3"
+                style="min-height: 400px;">
+                <div id="chart_cartoes" style="width: 100%; height: 350px;"></div>
+                <div id="no_data_cartoes" class="text-muted d-none">Nenhum gasto de cartão neste período.</div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Evolução Mensal -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-graph-up text-info me-2"></i>
+                <h5 class="mb-0 fw-bold">Evolução Mensal (Receita vs Despesa)</h5>
+            </div>
+            <div class="card-body p-3" style="min-height: 400px;">
+                <div id="chart_evolution" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    google.charts.load('current', {
+        'packages': ['corechart', 'bar'],
+        'language': 'pt-BR'
+    });
+
+    google.charts.setOnLoadCallback(fetchAndDraw);
+
+    // Redraw charts on resize and theme toggle
+    window.addEventListener('resize', fetchAndDraw);
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        setTimeout(fetchAndDraw, 100);
+    });
+
+    function getChartColors(isDark) {
+        return {
+            text: isDark ? '#f8f9fa' : '#2c3e50',
+            grid: isDark ? '#495057' : '#e9ecef',
+            bg: 'transparent'
+        };
+    }
+
+    function fetchAndDraw() {
+        const mes = {{ mes_sel }};
+        const ano = {{ ano_sel }};
+
+    fetch(`/api/financas/dados_graficos?mes=${mes}&ano=${ano}`)
+        .then(res => res.json())
+        .then(data => {
+            drawDespesasPie(data.despesas_pie);
+            drawReceitasPie(data.receitas_pie);
+            drawCartoesPie(data.cartoes_pie);
+            drawEvolution(data.evolution);
+        })
+        .catch(err => console.error("Erro ao buscar dados:", err));
+    }
+
+    function drawDespesasPie(rawData) {
+        const container = document.getElementById('chart_despesas');
+        const noData = document.getElementById('no_data_despesas');
+
+        if (!rawData || rawData.length === 0) {
+            container.classList.add('d-none');
+            noData.classList.remove('d-none');
+            return;
+        }
+
+        container.classList.remove('d-none');
+        noData.classList.add('d-none');
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Categoria');
+        data.addColumn('number', 'Valor');
+        data.addRows(rawData);
+
+        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const colors = getChartColors(isDark);
+
+        var options = {
+            pieHole: 0.5,
+            chartArea: { width: '90%', height: '80%' },
+            legend: {
+                position: 'right',
+                textStyle: { fontSize: 12, color: colors.text }
+            },
+            colors: ['#dc3545', '#fd7e14', '#ffc107', '#6610f2', '#6f42c1', '#d63384'],
+            backgroundColor: colors.bg,
+            pieSliceBorderColor: isDark ? '#343a40' : '#fff',
+            pieSliceText: 'percentage',
+            tooltip: { trigger: 'selection', showColorCode: true, text: 'value' }
+        };
+
+        // Formata o valor como moeda
+        var formatter = new google.visualization.NumberFormat({
+            prefix: 'R$ ',
+            decimalSymbol: ',',
+            groupingSymbol: '.'
+        });
+        formatter.format(data, 1);
+
+        new google.visualization.PieChart(container).draw(data, options);
+    }
+
+    function drawReceitasPie(rawData) {
+        const container = document.getElementById('chart_receitas');
+        const noData = document.getElementById('no_data_receitas');
+
+        if (!rawData || rawData.length === 0) {
+            container.classList.add('d-none');
+            noData.classList.remove('d-none');
+            return;
+        }
+
+        container.classList.remove('d-none');
+        noData.classList.add('d-none');
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Categoria');
+        data.addColumn('number', 'Valor');
+        data.addRows(rawData);
+
+        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const colors = getChartColors(isDark);
+
+        var options = {
+            pieHole: 0.5,
+            chartArea: { width: '90%', height: '80%' },
+            legend: {
+                position: 'right',
+                textStyle: { fontSize: 12, color: colors.text }
+            },
+            colors: ['#198754', '#0d6efd', '#20c997', '#0dcaf0', '#1a1a1a', '#495057'],
+            backgroundColor: colors.bg,
+            pieSliceBorderColor: isDark ? '#343a40' : '#fff',
+            pieSliceText: 'percentage'
+        };
+
+        var formatter = new google.visualization.NumberFormat({
+            prefix: 'R$ ',
+            decimalSymbol: ',',
+            groupingSymbol: '.'
+        });
+        formatter.format(data, 1);
+
+        new google.visualization.PieChart(container).draw(data, options);
+    }
+
+    function drawCartoesPie(rawData) {
+        const container = document.getElementById('chart_cartoes');
+        const noData = document.getElementById('no_data_cartoes');
+
+        if (!rawData || rawData.length === 0) {
+            container.classList.add('d-none');
+            noData.classList.remove('d-none');
+            return;
+        }
+
+        container.classList.remove('d-none');
+        noData.classList.add('d-none');
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Categoria');
+        data.addColumn('number', 'Valor');
+        data.addRows(rawData);
+
+        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const colors = getChartColors(isDark);
+
+        var options = {
+            pieHole: 0.5,
+            chartArea: { width: '90%', height: '80%' },
+            legend: {
+                position: 'right',
+                textStyle: { fontSize: 12, color: colors.text }
+            },
+            colors: ['#ffc107', '#fd7e14', '#dc3545', '#d63384', '#6f42c1', '#6610f2'],
+            backgroundColor: colors.bg,
+            pieSliceBorderColor: isDark ? '#343a40' : '#fff',
+            pieSliceText: 'percentage',
+            tooltip: { trigger: 'selection', showColorCode: true, text: 'value' }
+        };
+
+        var formatter = new google.visualization.NumberFormat({
+            prefix: 'R$ ',
+            decimalSymbol: ',',
+            groupingSymbol: '.'
+        });
+        formatter.format(data, 1);
+
+        new google.visualization.PieChart(container).draw(data, options);
+    }
+
+    function drawEvolution(rawData) {
+        if (!rawData || rawData.length === 0) return;
+
+        var data = new google.visualization.DataTable();
+        data.addColumn('string', 'Mês');
+        data.addColumn('number', 'Receitas');
+        data.addColumn('number', 'Despesas');
+        data.addRows(rawData);
+
+        const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+        const colors = getChartColors(isDark);
+
+        var options = {
+            chartArea: { width: '85%', height: '70%', left: 70 },
+            legend: {
+                position: 'top',
+                textStyle: { fontSize: 12, color: colors.text }
+            },
+            colors: ['#198754', '#dc3545'],
+            backgroundColor: colors.bg,
+            vAxis: {
+                gridlines: { color: colors.grid },
+                format: 'R$ #,###',
+                textStyle: { fontSize: 11, color: colors.text }
+            },
+            hAxis: {
+                textStyle: { fontSize: 11, color: colors.text }
+            },
+            animation: { duration: 500, startup: true },
+            bar: { groupWidth: '70%' }
+        };
+
+        new google.visualization.ColumnChart(document.getElementById('chart_evolution')).draw(data, options);
+    }
+</script>
+{% endblock %}

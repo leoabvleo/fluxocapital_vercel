@@ -1,0 +1,479 @@
+{% extends "base.html" %}
+
+{% block title %}Análise: {{ ticker }} - FluxoCapital{% endblock %}
+
+{% block content %}
+<!-- Barra de Ações Supedior -->
+<div class="d-flex justify-content-between align-items-center mb-0 mt-2 pb-2 d-print-none border-bottom">
+    <div style="width: 250px;">
+        <a href="{{ url_for('index') }}" class="btn btn-outline-secondary btn-sm" style="font-size: 0.75rem;">
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+    </div>
+
+    <!-- Navegação Central -->
+    <div class="d-flex align-items-center gap-1">
+        {% if prev_ticker %}
+        <a href="{{ url_for('detalhe_ativo', ticker=prev_ticker) }}"
+            class="btn btn-light border fw-bold text-primary shadow-sm px-2 py-1" title="Anterior: {{ prev_ticker }}">
+            <i class="bi bi-chevron-left fs-6"></i>
+        </a>
+        {% else %}
+        <button class="btn btn-light border shadow-sm px-2 py-1" disabled>
+            <i class="bi bi-chevron-left text-muted fs-6"></i>
+        </button>
+        {% endif %}
+
+        <span class="text-muted small fw-bold text-uppercase px-1" style="font-size: 0.65rem;">Ativo</span>
+
+        {% if next_ticker %}
+        <a href="{{ url_for('detalhe_ativo', ticker=next_ticker) }}"
+            class="btn btn-light border fw-bold text-primary shadow-sm px-2 py-1" title="Próximo: {{ next_ticker }}">
+            <i class="bi bi-chevron-right fs-6"></i>
+        </a>
+        {% else %}
+        <button class="btn btn-light border shadow-sm px-2 py-1" disabled>
+            <i class="bi bi-chevron-right text-muted fs-6"></i>
+        </button>
+        {% endif %}
+    </div>
+
+    <div class="d-flex gap-2 justify-content-end" style="width: 250px;">
+        <div class="dropdown">
+            <button class="btn btn-xs btn-outline-primary fw-bold dropdown-toggle" type="button"
+                id="dropdownMenuButton1" data-bs-toggle="dropdown" aria-expanded="false"
+                style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+                <i class="bi bi-arrow-left-right me-1"></i> Trocar
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="dropdownMenuButton1"
+                style="max-height: 300px; overflow-y: auto;">
+                {% for t in todos_tickers %}
+                <li><a class="dropdown-item {% if t == ticker %}active{% endif %}"
+                        href="{{ url_for('detalhe_ativo', ticker=t) }}">{{ t }}</a></li>
+                {% endfor %}
+            </ul>
+        </div>
+        <a href="https://content.btgpactual.com/research/ativo/{{ ticker }}" target="_blank"
+            class="btn btn-xs btn-primary fw-bold shadow-sm" title="Ver no BTG"
+            style="font-size: 0.7rem; padding: 0.25rem 0.5rem;">
+            <i class="bi bi-graph-up-arrow me-1"></i> BTG
+        </a>
+    </div>
+</div>
+
+<div class="row g-2">
+    <!-- Cabeçalho do Ativo -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm overflow-hidden">
+            <div class="card-body p-3 bg-primary text-white">
+                <div class="row align-items-center">
+                    <div class="col-auto">
+                        <div class="bg-white text-primary rounded-3 p-2 shadow-sm d-flex align-items-center justify-content-center"
+                            style="width: 50px; height: 50px;">
+                            <h3 class="mb-0 fw-bold">{{ ticker[:1] }}</h3>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <h6 class="text-white-50 text-uppercase mb-0 fw-bold ls-1" style="font-size: 0.65rem;">Análise
+                            de Ativo</h6>
+                        <h3 class="mb-0 fw-bold">
+                            {{ ticker }}
+                            {% if nome_ativo and nome_ativo != ticker %}
+                            <small class="fw-normal fs-6 opacity-75">- {{ nome_ativo }}</small>
+                            {% endif %}
+                        </h3>
+                    </div>
+                    <div class="col-auto text-end">
+                        <h6 class="text-white-50 text-uppercase mb-0 fw-bold ls-1" style="font-size: 0.65rem;">Preço
+                            Atual</h6>
+                        <h3 class="mb-0 fw-bold">R$ {{ preco_atual | br_format }}</h3>
+                        {% set preco_medio = (total_investido_atual / total_qtd_atual) if total_qtd_atual > 0 else 0 %}
+                        {% set val_rs = (total_qtd_atual * preco_atual) - total_investido_atual %}
+                        {% set val_pct = (val_rs / total_investido_atual * 100) if total_investido_atual > 0 else 0 %}
+                        <div class="mt-0 text-white fs-6 fw-bold privacy-value">
+                            MÉDIO: R$ {{ preco_medio | br_format }}
+                        </div>
+                        <div class="mt-0 privacy-value">
+                            <span
+                                class="badge {% if val_rs >= 0 %}bg-success{% else %}bg-danger{% endif %} border border-light px-2 py-0"
+                                style="font-size: 0.65rem;">
+                                <i class="bi bi-arrow-{% if val_rs >= 0 %}up{% else %}down{% endif %}"></i>
+                                R$ {{ val_rs | br_format }} ({{ val_pct | br_format }}%)
+                            </span>
+                            {% if pvp %}
+                            <span class="badge border border-light px-2 py-0 ms-1"
+                                style="background-color: rgba(255,255,255,0.2); font-size: 0.65rem;">
+                                P/VP: {{ pvp | br_format }}
+                            </span>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Cards de Resumo -->
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-3">
+                <h6 class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.6rem;">Investido</h6>
+                <h4 class="mb-1 fw-bold text-dark privacy-value">R$ {{ total_investido_atual | br_format }}</h4>
+                <p class="mb-0 text-muted small" style="font-size: 0.7rem;">
+                    Qtd: <span class="fw-bold privacy-value">{{ total_qtd_atual | clean_qtd }}</span> |
+                    P. Médio: <span class="fw-bold privacy-value">R$ {{ (total_investido_atual /
+                        total_qtd_atual) | br_format if total_qtd_atual > 0 else 0 }}</span>
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-3">
+                <h6 class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.6rem;">Patrimônio</h6>
+                <h4 class="mb-1 fw-bold text-primary privacy-value">R$ {{ (total_qtd_atual * preco_atual) | br_format }}
+                </h4>
+                {% set val_rs = (total_qtd_atual * preco_atual) - total_investido_atual %}
+                {% set val_pct = (val_rs / total_investido_atual * 100) if total_investido_atual > 0 else 0 %}
+                <p class="mb-0 {% if val_rs >= 0 %}text-success{% else %}text-danger{% endif %} small"
+                    style="font-size: 0.7rem;">
+                    {{ val_pct | br_format }}% (R$ {{ val_rs | br_format }})
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-3">
+                <h6 class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.6rem;">Proventos</h6>
+                <h4 class="mb-1 fw-bold text-success privacy-value">R$ {{ total_geral_proventos | br_format }}</h4>
+                <p class="mb-0 text-muted small" style="font-size: 0.7rem;">YoC: <span class="fw-bold">{{
+                        (total_geral_proventos /
+                        total_investido_atual * 100) | br_format if total_investido_atual > 0 else 0 }}%</span></p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-body p-3">
+                <h6 class="small fw-bold text-muted text-uppercase mb-2" style="font-size: 0.6rem;">Ganho Real</h6>
+                {% set ganho_total = val_rs + total_geral_proventos %}
+                <h4
+                    class="mb-1 fw-bold {% if ganho_total >= 0 %}text-success{% else %}text-danger{% endif %} privacy-value">
+                    R$ {{ ganho_total | br_format }}</h4>
+                <p class="mb-0 text-muted small" style="font-size: 0.7rem;">Retorno: <span class="fw-bold">{{
+                        (ganho_total / total_investido_atual
+                        * 100) | br_format if total_investido_atual > 0 else 0 }}%</span></p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos Históricos -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between p-2">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-bar-chart-line me-2 text-success"></i>Histórico:
+                    Proventos</h6>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-success btn-prov-detalhe-toggle active" data-mode="mensal"
+                        style="font-size: 0.65rem;">Mensal</button>
+                    <button type="button" class="btn btn-outline-success btn-prov-detalhe-toggle" data-mode="anual"
+                        style="font-size: 0.65rem;">Anual</button>
+                </div>
+            </div>
+            <div class="card-body p-0" style="min-height: 280px;">
+                <div id="chart_proventos_detalhe" style="width: 100%; height: 280px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between p-2">
+                <h6 class="mb-0 fw-bold text-dark"><i class="bi bi-cart-check me-2 text-info"></i>Histórico: Aportes
+                </h6>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-info btn-aportes-detalhe-toggle active" data-mode="mensal"
+                        style="font-size: 0.65rem;">Mensal</button>
+                    <button type="button" class="btn btn-outline-info btn-aportes-detalhe-toggle" data-mode="anual"
+                        style="font-size: 0.65rem;">Anual</button>
+                </div>
+            </div>
+            <div class="card-body p-0" style="min-height: 280px;">
+                <div id="chart_aportes_detalhe" style="width: 100%; height: 280px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Resumo Anual de Proventos -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-calendar-check me-2 text-primary"></i>Resumo Anual de
+                    Proventos</h5>
+            </div>
+            <div class="card-body p-0">
+                <table class="table table-hover align-middle mb-0">
+                    <thead class="bg-light">
+                        <tr>
+                            <th class="ps-4">Ano</th>
+                            <th class="text-end">Proventos</th>
+                            <th class="text-end">% Valor Investido</th>
+                            <th class="text-end pe-4">% Valor Atual</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for r in resumo_anual %}
+                        <tr>
+                            <td class="ps-4 fw-bold text-muted">{{ r.ano }}</td>
+                            <td class="text-end fw-bold text-success privacy-value">R$ {{ r.proventos | br_format }}
+                            </td>
+                            <td class="text-end">{{ r.yoc_ano | br_format }}%</td>
+                            <td class="text-end pe-4">{{ r.p_valor_atual_ano | br_format }}%</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Listagem de Aportes -->
+    <div class="col-md-6">
+        <div class="card border-0 shadow-sm h-100 overflow-hidden">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-cart-plus me-2 text-primary"></i>Histórico de Aportes
+                </h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Data</th>
+                                <th class="text-end">Qtd</th>
+                                <th class="text-end">Preço</th>
+                                <th class="text-end">Total</th>
+                                <th class="text-end pe-4">Val. (%)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for a in aportes %}
+                            <tr>
+                                <td class="ps-4 text-muted">{{ a.data.strftime('%d/%m/%Y') }}</td>
+                                <td class="text-end fw-bold">{{ a.qtd | clean_qtd }}</td>
+                                <td class="text-end privacy-value">R$ {{ a.preco_compra | br_format }}</td>
+                                <td class="text-end privacy-value">R$ {{ a.investido | br_format }}</td>
+                                <td
+                                    class="text-end pe-4 {% if a.valorizacao >= 0 %}text-success{% else %}text-danger{% endif %} fw-bold">
+                                    {{ a.valorizacao_pct | br_format }}%
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Detalhamento Mensal de Proventos -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <h5 class="mb-0 fw-bold text-dark"><i class="bi bi-list-stars me-2 text-primary"></i>Histórico Mensal de
+                    Pagamentos</h5>
+                <span class="badge bg-light text-muted border">Cronologia de Yields</span>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Dividendo p/ Cota</th>
+                                <th class="text-center">QUANT.</th>
+                                <th class="text-center">TIPO</th>
+                                <th class="text-end">Investido na Data</th>
+                                <th class="text-center">DATA PAGAMENTO</th>
+                                <th class="text-end">PROVENTOS</th>
+                                <th class="text-center">Yield on Cost (DYC)</th>
+                                <th class="text-end pe-4">% Valor Atual</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for h in historico %}
+                            <tr>
+                                <td class="ps-4 fw-bold privacy-value">R$ {{ h.div_cota | br_format }}</td>
+                                <td class="text-center text-muted">{{ h.qtd | clean_qtd }}</td>
+                                <td class="text-center"><span class="badge bg-light text-dark border">{{ h.tipo
+                                        }}</span></td>
+                                <td class="text-end privacy-value">R$ {{ h.investido | br_format }}</td>
+                                <td class="text-center fw-bold">{{ h.data.strftime('%d/%m/%y') }}</td>
+                                <td class="text-end fw-bold text-success privacy-value">R$ {{ h.valor_total | br_format
+                                    }}</td>
+                                <td class="text-center"><span
+                                        class="badge bg-primary-subtle text-primary border border-primary-subtle">{{
+                                        h.dyc | br_format }}%</span></td>
+                                <td class="text-end pe-4 text-muted small">{{ h.p_valor_atual | br_format }}%</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light fw-bold border-top">
+                            <tr>
+                                <td colspan="5" class="text-center ps-4 py-3 text-uppercase small">Total Recebido:</td>
+                                <td class="text-end py-3 text-success privacy-value">R$ {{ total_geral_proventos |
+                                    br_format }}</td>
+                                <td class="text-center py-3"><span class="badge bg-primary px-3">{{
+                                        (total_geral_proventos / total_investido_atual * 100) | br_format if
+                                        total_investido_atual > 0 else 0 }}%</span></td>
+                                <td class="text-end pe-4 py-3">{{ (total_geral_proventos / (total_qtd_atual *
+                                    preco_atual) * 100) | br_format if total_qtd_atual > 0 and preco_atual > 0 else 0
+                                    }}%</td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .ls-1 {
+        letter-spacing: 0.5px;
+    }
+
+    .table th {
+        font-size: 0.75rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+
+    .table td {
+        padding-top: 15px;
+        padding-bottom: 15px;
+    }
+
+    .bg-primary-subtle {
+        background-color: rgba(13, 110, 253, 0.1) !important;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    google.charts.load('current', { 'packages': ['corechart', 'bar'], 'language': 'pt-BR' });
+    google.charts.setOnLoadCallback(drawCharts);
+
+    let provModo = 'mensal';
+    let aportesModo = 'mensal';
+
+    function drawCharts() {
+        renderHistorico();
+    }
+
+    // Toggle de Proventos
+    document.querySelectorAll('.btn-prov-detalhe-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-prov-detalhe-toggle').forEach(b => {
+                b.classList.remove('active', 'btn-success');
+                b.classList.add('btn-outline-success');
+            });
+            this.classList.remove('btn-outline-success');
+            this.classList.add('active', 'btn-success');
+            provModo = this.dataset.mode;
+            renderHistorico();
+        });
+    });
+
+    // Toggle de Aportes
+    document.querySelectorAll('.btn-aportes-detalhe-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-aportes-detalhe-toggle').forEach(b => {
+                b.classList.remove('active', 'btn-info');
+                b.classList.add('btn-outline-info');
+            });
+            this.classList.remove('btn-outline-info');
+            this.classList.add('active', 'btn-info');
+            aportesModo = this.dataset.mode;
+            renderHistorico();
+        });
+    });
+
+    function renderHistorico() {
+        // Como o endpoint retorna ambos, mas os botões são independentes, 
+        // idealmente faríamos uma requisição por tipo ou trataríamos a atualização parcial.
+        // Para simplificar, vou buscar sempre para o modo atual de cada um.
+
+        // Render Proventos
+        fetch(`/dados_detalhe/{{ ticker }}?modo=${provModo}`)
+            .then(res => res.json())
+            .then(data => {
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const textColor = isDark ? '#f8f9fa' : '#2c3e50';
+                const gridColor = isDark ? '#495057' : '#e9ecef';
+
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', 'Período');
+                dt.addColumn('number', 'Proventos (R$)');
+                dt.addColumn('number', 'YoC (%)');
+                dt.addColumn('number', 'DY (%)');
+                dt.addRows(data.dividendos);
+
+                var options = {
+                    series: {
+                        0: { type: 'bars', targetAxisIndex: 0, color: '#198754' },
+                        1: { type: 'line', targetAxisIndex: 1, color: '#ffc107', lineWidth: 3, pointSize: 5 },
+                        2: { type: 'line', targetAxisIndex: 1, color: '#0dcaf0', lineWidth: 2, lineDashStyle: [4, 4], pointSize: 3 }
+                    },
+                    vAxes: {
+                        0: { title: 'Valor (R$)', titleTextStyle: { color: textColor }, textStyle: { color: textColor }, gridlines: { color: gridColor } },
+                        1: { title: 'Rendimento (%)', titleTextStyle: { color: textColor }, textStyle: { color: textColor }, gridlines: { none: true }, format: '#.##\'%\'' }
+                    },
+                    hAxis: { textStyle: { color: textColor } },
+                    legend: { position: 'top', textStyle: { color: textColor, fontSize: 11 } },
+                    backgroundColor: 'transparent',
+                    chartArea: { width: '85%', height: '70%', left: 60, right: 60 },
+                    animation: { duration: 500, startup: true }
+                };
+
+                var chart = new google.visualization.ComboChart(document.getElementById('chart_proventos_detalhe'));
+                chart.draw(dt, options);
+            });
+
+        // Render Aportes
+        fetch(`/dados_detalhe/{{ ticker }}?modo=${aportesModo}`)
+            .then(res => res.json())
+            .then(data => {
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const textColor = isDark ? '#f8f9fa' : '#2c3e50';
+                const gridColor = isDark ? '#495057' : '#e9ecef';
+
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', 'Período');
+                dt.addColumn('number', 'Total Investido (R$)');
+                dt.addRows(data.aportes);
+
+                var options = {
+                    legend: 'none',
+                    colors: ['#0dcaf0'],
+                    chartArea: { width: '85%', height: '70%', left: 70 },
+                    vAxis: {
+                        gridlines: { color: gridColor },
+                        format: 'R$ #,###',
+                        textStyle: { fontSize: 11, color: textColor }
+                    },
+                    hAxis: { textStyle: { fontSize: 11, color: textColor } },
+                    backgroundColor: 'transparent',
+                    animation: { duration: 500, startup: true }
+                };
+                new google.visualization.ColumnChart(document.getElementById('chart_aportes_detalhe')).draw(dt, options);
+            });
+    }
+
+    window.addEventListener('resize', drawCharts);
+</script>
+{% endblock %}

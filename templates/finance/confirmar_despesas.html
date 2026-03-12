@@ -1,0 +1,279 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar Importação de Despesas - FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-11">
+            <div class="card border-0 shadow-sm">
+
+                <!-- Cabeçalho -->
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0 fw-bold text-warning">
+                            <i class="bi bi-file-earmark-excel me-2 text-success"></i>
+                            Revisar Despesas/Receitas para Importação
+                        </h5>
+                        <span class="badge bg-warning-subtle text-warning-emphasis fs-6">
+                            {{ registros|length }} itens encontrados
+                        </span>
+                    </div>
+                </div>
+
+                <!-- Info -->
+                <div class="p-3 bg-light-subtle border-bottom">
+                    <p class="mb-0 small text-muted">
+                        <i class="bi bi-info-circle me-1"></i>
+                        Revise os dados abaixo. Você pode editar os campos diretamente ou marcar para excluir
+                        itens que não deseja importar. Todos os itens serão salvos como <strong>já pagos</strong>.
+                    </p>
+                </div>
+
+                <!-- Formulário -->
+                <form action="{{ url_for('finance.salvar_confirmacao_despesas') }}" method="POST" id="formConfirmacao">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0" id="tbl-confirmacao">
+                            <thead class="bg-light text-uppercase small fw-bold text-muted">
+                                <tr>
+                                    <th class="ps-3" style="min-width:220px;">Descrição</th>
+                                    <th style="min-width:100px;">Data</th>
+                                    <th style="min-width:90px;">Tipo</th>
+                                    <th style="min-width:120px;">Carteira</th>
+                                    <th style="min-width:150px;">Categoria</th>
+                                    <th style="min-width:110px;">Valor Pago (R$)</th>
+                                    <th class="text-center pe-3" style="width:80px;">Excluir</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reg in registros %}
+                                <tr class="import-row">
+                                    <!-- Descrição -->
+                                    <td class="ps-3">
+                                        {% if is_admin_or_superadmin %}
+                                        <input type="text" name="descricao[]"
+                                            class="form-control form-control-sm border-0 bg-transparent fw-semibold"
+                                            value="{{ reg.descricao }}" required>
+                                        {% else %}
+                                        <span class="fw-semibold">{{ reg.descricao }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Data -->
+                                    <td>
+                                        {% if is_admin_or_superadmin %}
+                                        <input type="date" name="data[]"
+                                            class="form-control form-control-sm border-0 bg-transparent"
+                                            value="{{ reg.data }}" required>
+                                        {% else %}
+                                        <span>{{ reg.data }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Tipo -->
+                                    <td>
+                                        {% if is_admin_or_superadmin %}
+                                        <select name="tipo[]"
+                                            class="form-select form-select-sm border-0 bg-transparent">
+                                            <option value="Despesa" {% if reg.tipo=='Despesa' %}selected{% endif %}>
+                                                Despesa</option>
+                                            <option value="Receita" {% if reg.tipo=='Receita' %}selected{% endif %}>
+                                                Receita</option>
+                                        </select>
+                                        {% else %}
+                                        <span>{{ reg.tipo }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Carteira -->
+                                    <td>
+                                        {% if is_admin_or_superadmin %}
+                                        <select name="carteira[]"
+                                            class="form-select form-select-sm border-0 bg-transparent">
+                                            <option value="">-- Sessão --</option>
+                                            {% for c in carteiras %}
+                                            <option value="{{ c.nome }}" {% if reg.carteira==c.nome %}selected{% endif
+                                                %}>
+                                                {{ c.nome }}
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        {% else %}
+                                        <span>{{ reg.carteira or '—' }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Categoria -->
+                                    <td>
+                                        {% if is_admin_or_superadmin %}
+                                        <select name="categoria[]"
+                                            class="form-select form-select-sm border-0 bg-transparent">
+                                            <option value="">-- Sem Categoria --</option>
+                                            {% for cat in categorias %}
+                                            <option value="{{ cat.nome }}" {% if reg.categoria==cat.nome %}selected{%
+                                                endif %}>
+                                                {{ cat.nome }} ({{ cat.tipo }})
+                                            </option>
+                                            {% endfor %}
+                                        </select>
+                                        {% else %}
+                                        <span>{{ reg.categoria or '—' }}</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Valor -->
+                                    <td>
+                                        <div class="input-group input-group-sm">
+                                            <span
+                                                class="input-group-text bg-transparent border-0 pe-1 text-muted">R$</span>
+                                            {% if is_admin_or_superadmin %}
+                                            <input type="number" step="0.01" min="0" name="valor[]"
+                                                class="form-control form-control-sm border-0 bg-transparent fw-bold
+                                                       {% if reg.tipo == 'Receita' %}text-success{% else %}text-danger{% endif %}" value="{{ reg.valor }}" required>
+                                            {% else %}
+                                            <span
+                                                class="fw-bold {% if reg.tipo == 'Receita' %}text-success{% else %}text-danger{% endif %}">
+                                                {{ reg.valor | float | round(2) }}
+                                            </span>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+
+                                    <!-- Excluir -->
+                                    <td class="text-center pe-3">
+                                        {% if is_admin_or_superadmin %}
+                                        <div class="form-check d-inline-block">
+                                            <input class="form-check-input check-excluir" type="checkbox"
+                                                name="excluir[]" value="{{ loop.index0 }}"
+                                                title="Marcar para não importar">
+                                        </div>
+                                        {% else %}
+                                        —
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+
+                            <!-- Rodapé com total -->
+                            <tfoot class="bg-light-subtle">
+                                <tr class="fw-bold small text-end">
+                                    <td colspan="5" class="pe-2">TOTAL A IMPORTAR:</td>
+                                    <td id="total-valor" class="text-danger">—</td>
+                                    <td></td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    <!-- Botões de ação -->
+                    <div class="card-footer bg-white border-top p-4">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <a href="{{ url_for('finance.dashboard') }}" class="btn btn-outline-secondary px-4 fw-bold">
+                                <i class="bi bi-arrow-left me-2"></i>Cancelar
+                            </a>
+                            {% if is_admin_or_superadmin %}
+                            <button type="submit" class="btn btn-warning px-5 fw-bold shadow-sm">
+                                <i class="bi bi-cloud-upload me-2"></i>Confirmar e Salvar
+                            </button>
+                            {% endif %}
+                        </div>
+                    </div>
+                </form>
+
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .import-row.excluded {
+        opacity: 0.45;
+        background-color: rgba(0, 0, 0, 0.04) !important;
+        text-decoration: line-through;
+    }
+
+    .import-row input:focus,
+    .import-row select:focus {
+        box-shadow: none;
+        background-color: #fff !important;
+        border: 1px solid #dee2e6 !important;
+        border-radius: 4px;
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        font-size: 0.875rem;
+    }
+
+    .input-group-text {
+        font-size: 0.875rem;
+    }
+
+    .import-row {
+        transition: background-color 0.15s ease-in-out;
+        cursor: default;
+    }
+
+    .check-excluir {
+        cursor: pointer;
+        transform: scale(1.25);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = document.querySelectorAll('.import-row');
+
+        rows.forEach(row => {
+            const checkbox = row.querySelector('.check-excluir');
+            if (!checkbox) return;
+
+            checkbox.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+
+            checkbox.addEventListener('change', function () {
+                if (this.checked) {
+                    row.classList.add('excluded', 'table-secondary');
+                } else {
+                    row.classList.remove('excluded', 'table-secondary');
+                }
+                calcTotal();
+            });
+        });
+
+        // Clique na linha para alternar o checkbox
+        rows.forEach(row => {
+            row.addEventListener('click', function (e) {
+                if (['INPUT', 'SELECT', 'BUTTON', 'A', 'LABEL'].includes(e.target.tagName)) return;
+                const cb = row.querySelector('.check-excluir');
+                if (cb) {
+                    cb.checked = !cb.checked;
+                    cb.dispatchEvent(new Event('change'));
+                }
+            });
+        });
+
+        // Calcula total visível
+        function calcTotal() {
+            let total = 0;
+            rows.forEach(row => {
+                const cb = row.querySelector('.check-excluir');
+                if (cb && cb.checked) return;
+                const inp = row.querySelector('input[name="valor[]"]');
+                if (inp) total += parseFloat(inp.value) || 0;
+            });
+            document.getElementById('total-valor').textContent =
+                'R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        }
+
+        // Recalcula ao editar valores
+        document.querySelectorAll('input[name="valor[]"]').forEach(inp => {
+            inp.addEventListener('input', calcTotal);
+        });
+
+        calcTotal();
+    });
+</script>
+{% endblock %}

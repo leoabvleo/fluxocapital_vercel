@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Recibo de Salário - {{ meses_br[mes_sel-1] }}/{{ ano_sel }}</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #fff;
+            color: #000;
+            padding: 20px;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                margin: 0;
+            }
+
+            .no-print {
+                display: none;
+            }
+
+            .receipt-container {
+                break-inside: avoid;
+                margin-bottom: 50px;
+            }
+        }
+
+        .receipt-box {
+            border: 3px solid #002060;
+            border-radius: 20px;
+            padding: 20px;
+            max-width: 900px;
+            margin: 0 auto 30px auto;
+            position: relative;
+        }
+
+        .receipt-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 10px;
+        }
+
+        .receipt-title {
+            font-size: 32px;
+            font-weight: 900;
+            color: #000;
+            flex-grow: 1;
+            text-align: center;
+            margin-left: 150px;
+            /* Offset to center better with the boxes on right */
+        }
+
+        .info-boxes {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            min-width: 250px;
+        }
+
+        .info-box {
+            border: 2px solid #002060;
+            border-radius: 15px;
+            padding: 2px 15px;
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+        }
+
+        .info-label {
+            font-weight: normal;
+        }
+
+        .info-value {
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        .receipt-divider {
+            height: 2px;
+            background-color: #002060;
+            margin: 10px 0;
+        }
+
+        .main-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 10px;
+        }
+
+        .main-table th {
+            text-transform: uppercase;
+            font-weight: bold;
+            font-size: 18px;
+            color: #000;
+            padding: 5px;
+            border-bottom: 2px solid #002060;
+        }
+
+        .main-table td {
+            padding: 8px 5px;
+            font-size: 16px;
+        }
+
+        .row-even {
+            background-color: #e9ecef;
+        }
+
+        .col-desc {
+            width: 60%;
+            text-align: left;
+        }
+
+        .col-venc {
+            width: 20%;
+            text-align: right;
+        }
+
+        .col-desc-val {
+            width: 20%;
+            text-align: right;
+        }
+
+        .total-row {
+            border-top: 2px solid #002060;
+            font-weight: bold;
+        }
+
+        .liquido-box {
+            border-top: 2px solid #002060;
+            border-bottom: 2px solid #002060;
+            padding: 5px;
+            margin-top: 10px;
+            font-weight: bold;
+            font-size: 20px;
+        }
+
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .info-item {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .info-label {
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 11px;
+            color: #555;
+        }
+
+        .info-value {
+            font-size: 15px;
+            font-weight: bold;
+        }
+
+        .signature-section {
+            margin-top: 30px;
+            text-align: right;
+        }
+
+        .receipt-acknowledgment {
+            font-size: 14px;
+            margin-bottom: 40px;
+            text-align: right;
+        }
+
+        .date-line {
+            display: inline-block;
+            border-bottom: 1px solid #000;
+            width: 40px;
+            text-align: center;
+        }
+
+        .signature-line {
+            border-top: 1px solid #000;
+            width: 400px;
+            margin-top: 10px;
+            display: inline-block;
+            text-align: center;
+            padding-top: 5px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body onload="window.print()">
+    <div class="no-print mb-4 text-center">
+        <button onclick="window.print()" class="btn btn-primary btn-lg">
+            <i class="bi bi-printer"></i> Imprimir Recibos
+        </button>
+    </div>
+
+    {% for d in dados_folha %}
+    {% if d.folha %}
+    {% set vbruto = d.folha.valor_bruto %}
+    {% set vinss = d.folha.desconto_inss %}
+    {% set vadiant = d.folha.desconto_adiantamento %}
+    {% set voutros = d.folha.outros_descontos %}
+    {% set vliq = d.folha.salario_liquido %}
+    {% else %}
+    {% set vbruto = d.valor_bruto %}
+    {% set vinss = d.desconto_inss %}
+    {% set vadiant = d.desconto_adiantamento %}
+    {% set voutros = d.outros_descontos %}
+    {% set vliq = d.salario_liquido %}
+    {% endif %}
+
+    <div class="receipt-container">
+        <div class="receipt-box">
+            <!-- Header -->
+            <div class="receipt-header" style="justify-content: center;">
+                <div class="receipt-title" style="margin-left: 0;">Recibo de Salário</div>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Basic Info -->
+            <div class="info-grid">
+                <div class="info-item" style="grid-column: span 2;">
+                    <span class="info-label">Empregador</span>
+                    <span class="info-value">{{ d.func.carteira_rel.nome if d.func.carteira_rel else '—' }}</span>
+                </div>
+                <div class="info-item text-end">
+                    <span class="info-label">Mês de Referência</span>
+                    <span class="info-value">{% set part = d.folha.mes_referencia.split('-') if d.folha else
+                        mes_ref.split('-') %}{{ meses_br[part[1]|int - 1] }} / {{ part[0] }}</span>
+                </div>
+
+                <div class="info-item">
+                    <span class="info-label">Trabalhador</span>
+                    <span class="info-value">{{ d.func.nome }}</span>
+                </div>
+                <div class="info-item text-center">
+                    <span class="info-label">CPF</span>
+                    <span class="info-value">{{ d.func.cpf or '—' }}</span>
+                </div>
+                <div class="info-item text-end">
+                    <span class="info-label">FORMA DE PAGAMENTO</span>
+                    <span class="info-value">
+                        {{ d.folha.forma_pagamento if d.folha and d.folha.pago else '—' }}
+                        {% if d.folha and d.folha.pago and (d.folha.forma_pagamento == 'Chave Pix' or d.folha.forma_pagamento == 'CachePix') and d.func.chave_pix %}
+                        <div style="font-size: 10px; font-weight: normal; color: #666; margin-top: -2px;">{{
+                            d.func.chave_pix }}</div>
+                        {% endif %}
+                    </span>
+                </div>
+            </div>
+
+            <div class="receipt-divider"></div>
+
+            <!-- Content Table -->
+            <table class="main-table">
+                <thead>
+                    <tr>
+                        <th class="col-desc">DESCRIÇÃO</th>
+                        <th class="col-venc">VENCIMENTO</th>
+                        <th class="col-desc-val">DESCONTO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Salário -->
+                    <tr class="row-even">
+                        <td class="col-desc">Salário Base</td>
+                        <td class="col-venc">R$ {{ vbruto | br_format }}</td>
+                        <td class="col-desc-val"></td>
+                    </tr>
+                    <!-- INSS -->
+                    <tr>
+                        <td class="col-desc">Contribuição previdenciária (INSS {{ d.func.inss_percent | br_format }}%)
+                        </td>
+                        <td class="col-venc"></td>
+                        <td class="col-desc-val">R$ {{ vinss | br_format }}</td>
+                    </tr>
+                    <!-- Adiantamentos -->
+                    {% if d.lancamentos_adiantamento %}
+                    {% for l in d.lancamentos_adiantamento %}
+                    <tr class="{% if loop.index % 2 == 0 %}row-even{% endif %}">
+                        <td class="col-desc">Adiantamento - {{ l.data.strftime('%d/%m/%Y') }} {{ '(' + l.observacao +
+                            ')' if l.observacao else '' }}</td>
+                        <td class="col-venc"></td>
+                        <td class="col-desc-val">R$ {{ l.valor | br_format }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% elif vadiant > 0 %}
+                    <tr class="row-even">
+                        <td class="col-desc">Adiantamentos</td>
+                        <td class="col-venc"></td>
+                        <td class="col-desc-val">R$ {{ vadiant | br_format }}</td>
+                    </tr>
+                    {% endif %}
+
+                    <!-- Outros Descontos -->
+                    {% if d.lancamentos_desconto %}
+                    {% for l in d.lancamentos_desconto %}
+                    <tr
+                        class="{% if (loop.index + (d.lancamentos_adiantamento|length if d.lancamentos_adiantamento else (1 if vadiant > 0 else 0))) % 2 == 0 %}row-even{% endif %}">
+                        <td class="col-desc">{{ l.observacao if l.observacao else 'Desconto' }}</td>
+                        <td class="col-venc"></td>
+                        <td class="col-desc-val">R$ {{ l.valor | br_format }}</td>
+                    </tr>
+                    {% endfor %}
+                    {% elif voutros > 0 %}
+                    <tr
+                        class="{% if (1 + (d.lancamentos_adiantamento|length if d.lancamentos_adiantamento else (1 if vadiant > 0 else 0))) % 2 == 0 %}row-even{% endif %}">
+                        <td class="col-desc">Descontos Extras</td>
+                        <td class="col-venc"></td>
+                        <td class="col-desc-val">R$ {{ voutros | br_format }}</td>
+                    </tr>
+                    {% endif %}
+                </tbody>
+            </table>
+
+            <!-- Totals -->
+            <table class="main-table total-row">
+                <tr>
+                    <td class="col-desc">TOTAL</td>
+                    <td class="col-venc">R$ {{ vbruto | br_format }}</td>
+                    <td class="col-desc-val">R$ {{ (vinss + vadiant + voutros) | br_format }}</td>
+                </tr>
+            </table>
+
+            <div class="liquido-box">
+                TOTAL LIQUIDO: R$ {{ vliq | br_format }}
+            </div>
+
+            <!-- Signature -->
+            <div class="signature-section">
+                <div class="receipt-acknowledgment">
+                    Recebi o total líquido discriminado neste recibo.
+                    <br><br>
+                    <span class="date-line"></span> / <span class="date-line"></span> / <span class="date-line"
+                        style="width: 80px;"></span>
+                </div>
+                <div class="signature-line">
+                    Assinatura do Trabalhador
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</body>
+
+</html>

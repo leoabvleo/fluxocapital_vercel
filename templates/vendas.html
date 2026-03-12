@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+
+{% block title %}Vendas - FluxoCapital{% endblock %}
+
+{% block extra_head %}
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-danger"><i class="bi bi-clock-history me-2"></i>Histórico de Vendas</h5>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table id="tabelaVendas" class="table table-hover align-middle mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4">Ativo</th>
+                                <th>Carteira</th>
+                                <th>Categoria</th>
+                                <th>Data Venda</th>
+                                <th>Qtd</th>
+                                <th>Preço Venda</th>
+                                <th>P. Médio</th>
+                                <th>Lucro Realizado</th>
+                                {% if is_admin_or_superadmin %}
+                                <th class="text-center pe-4">Ação</th>
+                                {% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for v in vendas %}
+                            <tr>
+                                <td class="ps-4"><strong class="text-primary">{{ v.ticker }}</strong></td>
+                                <td>
+                                    <span class="display-mode">
+                                        <span class="badge bg-primary-subtle text-primary border">{{ v.carteira
+                                            }}</span>
+                                    </span>
+                                    <span class="edit-mode d-none">
+                                        <select class="form-select form-select-sm edit-carteira-id">
+                                            {% for c in carteiras_disponiveis_objs %}
+                                            <option value="{{ c.id }}" {% if v.carteira_id==c.id %}selected{% endif %}>
+                                                {{ c.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </span>
+                                <td>
+                                    <span class="display-mode">
+                                        <span class="badge bg-secondary-subtle text-secondary border">
+                                            {{ v.categoria_rel.nome if v.categoria_rel else 'Ações' }}
+                                        </span>
+                                    </span>
+                                    <span class="edit-mode d-none">
+                                        <select class="form-select form-select-sm edit-categoria-id">
+                                            {% for cat in categoria_ativos %}
+                                            <option value="{{ cat.id }}" {% if v.categoria_id==cat.id %}selected{% endif
+                                                %}>
+                                                {{ cat.nome }}</option>
+                                            {% endfor %}
+                                        </select>
+                                    </span>
+                                </td>
+                                <td class="text-muted"
+                                    data-order="{{ v.data_venda.strftime('%Y-%m-%d') if v.data_venda else '' }}">
+                                    <span class="display-mode">{{ v.data_venda.strftime('%d/%m/%Y') if v.data_venda else
+                                        '-' }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="date" class="form-control form-control-sm edit-data"
+                                            value="{{ v.data_venda.strftime('%Y-%m-%d') if v.data_venda else '' }}">
+                                    </span>
+                                </td>
+                                <td class="privacy-value">
+                                    <span class="display-mode">{{ v.quantidade | clean_qtd }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="number" step="any"
+                                            class="form-control form-control-sm edit-quantidade"
+                                            value="{{ v.quantidade }}">
+                                    </span>
+                                </td>
+                                <td class="privacy-value">
+                                    <span class="display-mode">R$ {{ v.preco_venda | br_format }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="number" step="0.01"
+                                            class="form-control form-control-sm edit-preco-venda"
+                                            value="{{ v.preco_venda }}">
+                                    </span>
+                                </td>
+                                <td class="text-muted privacy-value">
+                                    <span class="display-mode">R$ {{ v.preco_medio_compra | br_format }}</span>
+                                    <span class="edit-mode d-none">
+                                        <input type="number" step="0.01"
+                                            class="form-control form-control-sm edit-preco-medio"
+                                            value="{{ v.preco_medio_compra }}">
+                                    </span>
+                                </td>
+                                <td
+                                    class="fw-bold privacy-value {% if v.lucro_realizado >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                    R$ {{ v.lucro_realizado | br_format }}
+                                </td>
+                                {% if is_admin_or_superadmin %}
+                                <td class="text-center pe-4">
+                                    <div class="btn-group">
+                                        <button class="btn btn-outline-primary btn-sm border-0 btn-edit"
+                                            onclick="editRow('{{ v.id }}', this)" title="Editar">
+                                            <i class="bi bi-pencil"></i>
+                                        </button>
+                                        <button class="btn btn-outline-success btn-sm border-0 d-none btn-save"
+                                            onclick="saveRow('{{ v.id }}', this)" title="Salvar">
+                                            <i class="bi bi-check-lg"></i>
+                                        </button>
+                                        <button class="btn btn-outline-secondary btn-sm border-0 d-none btn-cancel"
+                                            onclick="cancelEdit(this)" title="Cancelar">
+                                            <i class="bi bi-x-lg"></i>
+                                        </button>
+                                        <a href="/deletar_venda/{{ v.id }}"
+                                            class="btn btn-outline-danger btn-sm border-0 btn-delete"
+                                            onclick="return confirm('Excluir este registro de venda?')" title="Excluir">
+                                            <i class="bi bi-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="bg-light fw-bold">
+                            <tr>
+                                <td colspan="7" class="text-end text-uppercase ps-4">TOTAL:</td>
+                                <td id="total-vendas" class="fw-bold privacy-value">R$ 0,00</td>
+                                {% if is_admin_or_superadmin %}
+                                <td>-</td>
+                                {% endif %}
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#tabelaVendas').DataTable({
+            "pageLength": 15,
+            "order": [[1, "desc"]],
+            "language": {
+                "sEmptyTable": "Nenhum registro encontrado",
+                "sInfo": "Mostrando de _START_ até _END_ de _TOTAL_ registros",
+                "sInfoEmpty": "Mostrando 0 até 0 de 0 registros",
+                "sInfoFiltered": "(Filtrados de _MAX_ registros)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ".",
+                "sLengthMenu": "_MENU_ resultados por página",
+                "sLoadingRecords": "Carregando...",
+                "sProcessing": "Processando...",
+                "sZeroRecords": "Nenhum registro encontrado",
+                "sSearch": "Pesquisar",
+                "oPaginate": {
+                    "sNext": "Próximo",
+                    "sPrevious": "Anterior",
+                    "sFirst": "Primeiro",
+                    "sLast": "Último"
+                },
+                "oAria": {
+                    "sSortAscending": ": Ordenar colunas de forma ascendente",
+                    "sSortDescending": ": Ordenar colunas de forma descendente"
+                }
+            },
+            "dom": "<'row p-3'<'col-md-6'f><'col-md-6'p>>rt",
+            "drawCallback": function () {
+                var api = this.api();
+                // Coluna Lucro Realizado index 7 (Ativo, Portfolio, Categoria, Data, Qtd, Preço, P.Médio, Lucro)
+                var total = api.column(7, { search: 'applied' }).data().reduce(function (a, b) {
+                    function clean(v) {
+                        if (typeof v === 'string') {
+                            // Extrair o primeiro valor se houver múltiplos (como os spans de display/edit)
+                            const match = v.match(/R\$\s*([\d\.,-]+)/);
+                            if (match) return match[1].replace(/[^\d,-]/g, '').replace(',', '.');
+                            return v.replace(/[^\d,-]/g, '').replace(',', '.');
+                        }
+                        return v;
+                    }
+                    return parseFloat(clean(a) || 0) + parseFloat(clean(b) || 0);
+                }, 0);
+
+                const el = $('#total-vendas');
+                el.text('R$ ' + total.toLocaleString('pt-BR', { minimumFractionDigits: 2 }));
+
+                el.removeClass('text-success text-danger');
+                if (total >= 0) el.addClass('text-success');
+                else el.addClass('text-danger');
+            }
+        });
+    });
+
+    function editRow(id, btn) {
+        const row = $(btn).closest('tr');
+        row.find('.display-mode').addClass('d-none');
+        row.find('.edit-mode').removeClass('d-none');
+
+        row.find('.btn-edit, .btn-delete').addClass('d-none');
+        row.find('.btn-save, .btn-cancel').removeClass('d-none');
+    }
+
+    function cancelEdit(btn) {
+        const row = $(btn).closest('tr');
+        row.find('.display-mode').removeClass('d-none');
+        row.find('.edit-mode').addClass('d-none');
+
+        row.find('.btn-edit, .btn-delete').removeClass('d-none');
+        row.find('.btn-save, .btn-cancel').addClass('d-none');
+    }
+
+    function saveRow(id, btn) {
+        const row = $(btn).closest('tr');
+        const data = {
+            id: id,
+            carteira_id: row.find('.edit-carteira-id').val(),
+            categoria_id: row.find('.edit-categoria-id').val(),
+            data: row.find('.edit-data').val(),
+            quantidade: row.find('.edit-quantidade').val(),
+            preco_venda: row.find('.edit-preco-venda').val(),
+            preco_medio_compra: row.find('.edit-preco-medio').val()
+        };
+
+        $.post('/editar_venda', data, function (response) {
+            if (response.success) {
+                location.reload();
+            } else {
+                alert('Erro ao salvar: ' + (response.error || 'Erro desconhecido'));
+            }
+        }).fail(function () {
+            alert('Erro na requisição ao servidor.');
+        });
+    }
+</script>
+{% endblock %}

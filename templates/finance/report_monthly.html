@@ -1,0 +1,360 @@
+{% extends "base.html" %}
+
+{% block title %}Relatório Mensal - {{ meses_br[mes_sel-1] }} {{ ano_sel }}{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media print {
+
+        .no-print,
+        .navbar,
+        footer {
+            display: none !important;
+        }
+
+        .card {
+            border: 1px solid #ddd !important;
+            box-shadow: none !important;
+        }
+
+        .container {
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body {
+            background-color: white !important;
+            padding-top: 0 !important;
+        }
+
+        .summary-card h6 {
+            font-size: 0.65rem !important;
+        }
+
+        .summary-card h4 {
+            font-size: 0.9rem !important;
+        }
+
+        .report-header h3 {
+            font-size: 1.2rem !important;
+        }
+
+        .report-header h5 {
+            font-size: 0.9rem !important;
+        }
+    }
+
+    .spreadsheet-table {
+        border-collapse: collapse;
+        font-size: 0.75rem;
+        width: 100%;
+    }
+
+    .spreadsheet-table th,
+    .spreadsheet-table td {
+        border: 1px solid #dee2e6 !important;
+        padding: 0.25rem 0.4rem !important;
+        white-space: normal;
+    }
+
+    .spreadsheet-table td:first-child,
+    .spreadsheet-table td:last-child {
+        white-space: nowrap;
+    }
+
+    .bg-income {
+        background-color: rgba(25, 135, 84, 0.05);
+    }
+
+    .bg-expense {
+        background-color: rgba(220, 53, 69, 0.05);
+    }
+
+    .bg-investment {
+        background-color: rgba(13, 110, 253, 0.05);
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="no-print mb-4">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+        <h2 class="fw-bold mb-0 text-primary"><i class="bi bi-printer me-2"></i>Relatório Mensal</h2>
+
+        <div class="d-flex gap-2 align-items-center">
+            <div class="dropdown d-print-none">
+                <button class="btn btn-white border shadow-sm dropdown-toggle fw-bold text-primary small" type="button"
+                    id="dropdownWallets" data-bs-toggle="dropdown" data-bs-auto-close="outside" aria-expanded="false"
+                    style="padding: 0.25rem 0.5rem; font-size: 0.875rem;">
+                    <i class="bi bi-wallet2 me-1"></i> Carteiras
+                </button>
+                <ul class="dropdown-menu shadow" aria-labelledby="dropdownWallets" style="min-width: 200px;">
+                    <li>
+                        <div class="dropdown-item">
+                            <div class="form-check">
+                                <input class="form-check-input wallet-checkbox" type="checkbox" value="Consolidada"
+                                    id="chkConsolidada" {% if not carteiras_selecionadas or 'Consolidada' in
+                                    carteiras_selecionadas %}checked{% endif %}>
+                                <label class="form-check-label fw-bold" for="chkConsolidada">CONSOLIDADA</label>
+                            </div>
+                        </div>
+                    </li>
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    {% for c in todas_carteiras %}
+                    <li>
+                        <div class="dropdown-item">
+                            <div class="form-check">
+                                <input class="form-check-input wallet-checkbox" type="checkbox" value="{{ c.nome }}"
+                                    id="chk_{{ c.id }}" {% if c.nome in carteiras_selecionadas %}checked{% endif %}>
+                                <label class="form-check-label" for="chk_{{ c.id }}">{{ c.nome }}</label>
+                            </div>
+                        </div>
+                    </li>
+                    {% endfor %}
+                    <li>
+                        <hr class="dropdown-divider">
+                    </li>
+                    <li class="p-2 pt-0">
+                        <button class="btn btn-primary btn-sm w-100 mt-1" onclick="updateWallets()">Aplicar</button>
+                    </li>
+                </ul>
+            </div>
+
+            <form action="{{ url_for('finance.relatorio_mensal') }}" method="GET" class="d-flex gap-2"
+                id="formRelatorio">
+                <!-- Manter as carteiras selecionadas no form se necessário, mas o script as pegará via URL -->
+                {% for c in carteiras_selecionadas %}
+                <input type="hidden" name="carteira" value="{{ c }}">
+                {% endfor %}
+                <select name="mes" class="form-select form-select-sm fw-bold border-primary text-primary"
+                    onchange="this.form.submit()">
+                    {% for i in range(1, 13) %}
+                    <option value="{{ i }}" {% if i==mes_sel %}selected{% endif %}>{{ meses_br[i-1] }}</option>
+                    {% endfor %}
+                </select>
+                <select name="ano" class="form-select form-select-sm fw-bold border-primary text-primary"
+                    onchange="this.form.submit()">
+                    {% for y in range(2019, 2031) %}
+                    <option value="{{ y }}" {% if y==ano_sel %}selected{% endif %}>{{ y }}</option>
+                    {% endfor %}
+                </select>
+                <select name="filtro" class="form-select form-select-sm fw-bold border-primary text-primary"
+                    onchange="this.form.submit()">
+                    <option value="tudo" {% if filtro=='tudo' %}selected{% endif %}>Tudo Junto</option>
+                    <option value="receitas" {% if filtro=='receitas' %}selected{% endif %}>Apenas Receitas</option>
+                    <option value="despesas" {% if filtro=='despesas' %}selected{% endif %}>Apenas Despesas</option>
+                    <option value="aportes" {% if filtro=='aportes' %}selected{% endif %}>Apenas Aportes</option>
+                </select>
+            </form>
+
+            <script>
+                function updateWallets() {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('carteira');
+
+                    const checkboxes = document.querySelectorAll('.wallet-checkbox:checked');
+                    let values = Array.from(checkboxes).map(cb => cb.value);
+
+                    if (values.includes('Consolidada') || values.length === 0) {
+                        url.searchParams.set('carteira', 'Consolidada');
+                    } else {
+                        values.forEach(v => url.searchParams.append('carteira', v));
+                    }
+
+                    window.location.href = url.href;
+                }
+            </script>
+            <button onclick="window.print()" class="btn btn-primary btn-sm px-3">
+                <i class="bi bi-printer me-1"></i> Imprimir / PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<div class="report-header text-center mb-4">
+    <h3 class="fw-bold mb-1">RELATÓRIO FINANCEIRO MENSAL</h3>
+    <h5 class="text-muted">{{ meses_br[mes_sel-1].upper() }} / {{ ano_sel }}</h5>
+    <div class="badge bg-secondary-subtle text-secondary px-3 py-2 mt-2">
+        <i class="bi bi-wallet2 me-1"></i> Carteira: {{ carteira_atual }}
+    </div>
+</div>
+
+{% if filtro == 'tudo' %}
+<div class="row g-3 mb-4">
+    <div class="col">
+        <div class="card border-0 shadow-sm text-center py-2 h-100 summary-card">
+            <h6 class="text-uppercase tiny fw-bold text-success mb-1">Receitas</h6>
+            <h4 class="fw-bold mb-0 privacy-value">R$ {{ (total_receitas + total_proventos) | br_format }}</h4>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card border-0 shadow-sm text-center py-2 h-100 summary-card">
+            <h6 class="text-uppercase tiny fw-bold text-danger mb-1">Despesas</h6>
+            <h4 class="fw-bold mb-0 privacy-value">R$ {{ total_despesas_pago | br_format }}</h4>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card border-0 shadow-sm text-center py-2 h-100 summary-card">
+            <h6 class="text-uppercase tiny fw-bold text-primary mb-1">Investimentos</h6>
+            <h4 class="fw-bold mb-0 privacy-value">R$ {{ total_aportes | br_format }}</h4>
+        </div>
+    </div>
+
+    <div class="col">
+        <div class="card border-0 shadow-sm text-center py-2 h-100 summary-card">
+            <h6 class="text-uppercase tiny fw-bold text-info mb-1">Saldo Líquido</h6>
+            <h4 class="fw-bold mb-0 privacy-value">R$ {{ (total_receitas + total_proventos - total_despesas_pago -
+                total_aportes) |
+                br_format }}</h4>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% if filtro in ['tudo', 'receitas'] %}
+<!-- RECEITAS SECTION -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-success text-white py-2">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-arrow-down-circle me-2"></i>RECEITAS E PROVENTOS</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="spreadsheet-table text-center">
+            <thead class="bg-light">
+                <tr class="text-uppercase tiny fw-bold">
+                    <th style="width: 15%">DATA</th>
+                    <th style="width: 60%" class="text-start ps-3">DESCRIÇÃO</th>
+                    <th style="width: 25%">VALOR (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in receitas_list %}
+                <tr class="bg-income">
+                    <td>{{ t.data.strftime('%d/%m/%Y') }}</td>
+                    <td class="text-start ps-3">{{ t.descricao }}</td>
+                    <td class="fw-bold text-success privacy-value">{{ (t.valor_pago if t.valor_pago > 0 else t.valor) |
+                        br_format }}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% for p in proventos_list %}
+                <tr class="bg-income">
+                    <td>{{ p.data_recebimento.strftime('%d/%m/%Y') }}</td>
+                    <td class="text-start ps-3">PROVENTO: {{ p.ticker }}</td>
+                    <td class="fw-bold text-success privacy-value">{{ p.valor_total | br_format }}</td>
+                </tr>
+                {% endfor %}
+                {% if not receitas_list and not proventos_list %}
+                <tr>
+                    <td colspan="3" class="py-3 text-muted">Nenhuma receita no período.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+            <tfoot class="bg-light">
+                <tr class="fw-bold">
+                    <td colspan="2" class="text-end pe-3">TOTAL RECEITAS:</td>
+                    <td class="text-success privacy-value">R$ {{ (total_receitas + total_proventos) | br_format }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if filtro in ['tudo', 'despesas'] %}
+<!-- DESPESAS SECTION -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-danger text-white py-2">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-arrow-up-circle me-2"></i>DESPESAS</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="spreadsheet-table text-center">
+            <thead class="bg-light">
+                <tr class="text-uppercase tiny fw-bold">
+                    <th style="width: 15%">DATA</th>
+                    <th style="width: 65%" class="text-start ps-3">DESCRIÇÃO</th>
+                    <th style="width: 20%">PAGO (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for t in despesas_list %}
+                <tr class="bg-expense">
+                    <td>{{ t.data.strftime('%d/%m/%Y') }}</td>
+                    <td class="text-start ps-3">{{ t.descricao }}</td>
+                    <td class="fw-bold text-danger privacy-value">{{ t.valor_pago | br_format }}</td>
+                </tr>
+                {% endfor %}
+                {% if not despesas_list %}
+                <tr>
+                    <td colspan="3" class="py-3 text-muted">Nenhuma despesa no período.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+            <tfoot class="bg-light">
+                <tr class="fw-bold">
+                    <td colspan="2" class="text-end pe-3">TOTAL DESPESAS:</td>
+                    <td class="text-danger privacy-value">R$ {{ total_despesas_pago | br_format }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+{% if filtro in ['tudo', 'aportes'] %}
+<!-- INVESTIMENTOS SECTION -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-primary text-white py-2">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-graph-up me-2"></i>APORTES / INVESTIMENTOS</h6>
+    </div>
+    <div class="card-body p-0">
+        <table class="spreadsheet-table text-center">
+            <thead class="bg-light">
+                <tr class="text-uppercase tiny fw-bold">
+                    <th style="width: 15%">DATA</th>
+                    <th style="width: 20%">ATIVO</th>
+                    <th style="width: 20%">QTD</th>
+                    <th style="width: 20%">PREÇO (R$)</th>
+                    <th style="width: 25%">TOTAL (R$)</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in aportes_list %}
+                <tr class="bg-investment">
+                    <td>{{ a.data_compra.strftime('%d/%m/%Y') }}</td>
+                    <td class="fw-bold">{{ a.ticker }}</td>
+                    <td class="privacy-value">{{ a.quantidade | br_format }}</td>
+                    <td class="privacy-value">{{ a.preco_compra | br_format }}</td>
+                    <td class="fw-bold text-primary privacy-value">{{ (a.quantidade * a.preco_compra) | br_format }}
+                    </td>
+                </tr>
+                {% endfor %}
+                {% if not aportes_list %}
+                <tr>
+                    <td colspan="5" class="py-3 text-muted">Nenhum aporte no período.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+            <tfoot class="bg-light">
+                <tr class="fw-bold">
+                    <td colspan="4" class="text-end pe-3">TOTAL INVESTIMENTOS:</td>
+                    <td class="text-primary privacy-value">R$ {{ total_aportes | br_format }}</td>
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</div>
+{% endif %}
+
+<div class="small text-muted text-end mt-4">
+    <div class="fw-bold">FluxoCapital App</div>
+    <div>Criado e desenvolvido por Leonardo Américo Bezerra Viana</div>
+    <div><small>Gerado em {{ hoje_full }}</small></div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+
+{% block title %}Detalhes da {{ cartao_nome }} - {{ mes_nome }}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2 class="fw-bold mb-0 text-primary"><i class="bi bi-credit-card me-2"></i>{{ cartao_nome }} - {{ mes_nome }}</h2>
+
+    <a href="{{ url_for('finance.dashboard', mes=fatura_mes.split('-')[1], ano=fatura_mes.split('-')[0]) }}"
+        class="btn btn-outline-secondary">
+        <i class="bi bi-arrow-left me-1"></i> Voltar
+    </a>
+</div>
+
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-primary text-white border-0 py-2">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-list-check me-2"></i>Lançamentos Detalhados</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+                <thead class="bg-light">
+                    <tr class="text-uppercase tiny fw-bold text-muted">
+                        <th style="width: 15%; cursor: pointer;" class="ps-3" onclick="sortTable(0, 'date')">Data <i
+                                class="bi bi-chevron-expand ms-1 opacity-50"></i></th>
+                        <th style="width: 45%; cursor: pointer;" onclick="sortTable(1, 'text')">Descrição <i
+                                class="bi bi-chevron-expand ms-1 opacity-50"></i></th>
+                        <th style="width: 20%; cursor: pointer;" onclick="sortTable(2, 'select')">Categoria <i
+                                class="bi bi-chevron-expand ms-1 opacity-50"></i></th>
+                        <th style="width: 20%; cursor: pointer;" class="text-end pe-3"
+                            onclick="sortTable(3, 'currency')">Valor <i
+                                class="bi bi-chevron-expand ms-1 opacity-50"></i></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in itens %}
+                    <tr>
+                        <td class="ps-3">{{ item.data.strftime('%d/%m/%Y') }}</td>
+                        <td class="fw-bold text-dark">{{ item.descricao }}</td>
+                        <td>
+                            <select class="form-select form-select-sm categoria-select bg-light fw-normal"
+                                style="max-width: 200px;" data-item-id="{{ item.id }}">
+                                <option value="" {% if not item.categoria %}selected{% endif %}>Sem categoria</option>
+                                {% for cat in categorias %}
+                                <option value="{{ cat.id }}" {% if item.categoria and item.categoria.id==cat.id
+                                    %}selected{% endif %}>
+                                    {{ cat.nome }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </td>
+                        <td class="text-end pe-3 text-danger">R$ {{ item.valor | br_format }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot class="bg-light fw-bold">
+                    <tr>
+                        <td colspan="3" class="text-end pe-3">TOTAL DA FATURA:</td>
+                        <td class="text-end pe-3 text-danger">R$ {{ total | br_format }}</td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .tiny {
+        font-size: 0.75rem;
+    }
+</style>
+
+<script>
+    let sortOrders = {};
+
+    function sortTable(n, type) {
+        const table = document.querySelector("table.table tbody");
+        if (!table) return;
+
+        let switching = true;
+        let dir = sortOrders[n] === "asc" ? "desc" : "asc";
+        sortOrders[n] = dir;
+
+        while (switching) {
+            switching = false;
+            let rows = table.rows;
+            let i, shouldSwitch;
+
+            for (i = 0; i < (rows.length - 1); i++) {
+                shouldSwitch = false;
+                let x = rows[i].querySelectorAll("td")[n];
+                let y = rows[i + 1].querySelectorAll("td")[n];
+
+                let xVal, yVal;
+
+                if (type === 'date') {
+                    // dd/mm/yyyy -> yyyymmdd
+                    xVal = x.textContent.trim().split('/').reverse().join('');
+                    yVal = y.textContent.trim().split('/').reverse().join('');
+                } else if (type === 'select') {
+                    let selX = x.querySelector('select');
+                    let selY = y.querySelector('select');
+                    xVal = selX ? selX.options[selX.selectedIndex].text.toLowerCase().trim() : x.textContent.trim().toLowerCase();
+                    yVal = selY ? selY.options[selY.selectedIndex].text.toLowerCase().trim() : y.textContent.trim().toLowerCase();
+                } else if (type === 'currency') {
+                    // R$ 1.200,50 -> 1200.50
+                    xVal = parseFloat(x.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+                    yVal = parseFloat(y.textContent.replace('R$', '').replace(/\./g, '').replace(',', '.').trim()) || 0;
+                } else { // text
+                    xVal = x.textContent.trim().toLowerCase();
+                    yVal = y.textContent.trim().toLowerCase();
+                }
+
+                if (dir === "asc") {
+                    if (xVal > yVal) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                } else if (dir === "desc") {
+                    if (xVal < yVal) {
+                        shouldSwitch = true;
+                        break;
+                    }
+                }
+            }
+            if (shouldSwitch) {
+                rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                switching = true;
+            }
+        }
+    }
+
+    document.addEventListener("DOMContentLoaded", function () {
+        const selects = document.querySelectorAll('.categoria-select');
+        selects.forEach(select => {
+            select.addEventListener('change', function (e) {
+                const itemId = this.getAttribute('data-item-id');
+                const catId = this.value;
+
+                this.classList.add('opacity-50');
+
+                fetch("{{ url_for('finance.update_item_categoria') }}", {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        item_id: itemId,
+                        categoria_id: catId ? parseInt(catId) : null
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        this.classList.remove('opacity-50');
+                        if (data.success) {
+                            // Success update
+                        } else {
+                            alert("Erro ao atualizar a categoria.");
+                        }
+                    })
+                    .catch(err => {
+                        this.classList.remove('opacity-50');
+                        console.error("Erro:", err);
+                        alert("Erro de comunicação ao atualizar.");
+                    });
+            });
+        });
+    });
+</script>
+{% endblock %}

@@ -1,0 +1,348 @@
+{% extends "base.html" %}
+
+{% block title %}Configurações Fixas - FluxoCapital{% endblock %}
+
+{% block extra_head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div class="d-flex align-items-center gap-3">
+        <a href="{{ url_for('finance.dashboard') }}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-arrow-left"></i> Voltar
+        </a>
+        <h2 class="fw-bold mb-0 text-primary"><i class="bi bi-gear me-2"></i>Receitas/Despesas Recorrentes</h2>
+    </div>
+
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('finance.categorias') }}" class="btn btn-outline-primary shadow-sm">
+            <i class="bi bi-tags me-1"></i> Categorias
+        </a>
+        {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+        <button class="btn btn-primary shadow-sm" data-bs-toggle="modal" data-bs-target="#modalAddConfigFixa">
+            <i class="bi bi-plus-lg me-1"></i> Nova Configuração
+        </button>
+        {% endif %}
+    </div>
+</div>
+
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-primary text-white border-0 py-2">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-list-check me-2"></i>Itens Configurados</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table id="tabelaConfigFixas"
+                class="table table-bordered align-middle mb-0 text-center spreadsheet-table table-sm">
+                <thead class="bg-light">
+                    <tr class="text-uppercase tiny fw-bold text-muted">
+                        <th style="width: 5%">#</th>
+                        <th style="width: 10%">TIPO</th>
+                        <th style="width: 18%">CATEGORIA</th>
+                        <th style="width: 10%">DIA VENC.</th>
+                        <th style="width: 32%" class="text-start ps-2">DESCRIÇÃO</th>
+                        <th style="width: 15%">VALOR ESTIMADO</th>
+                        <th style="width: 8%">ATIVO</th>
+                        {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                        <th style="width: 5%">AÇÃO</th>
+                        {% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in config_list %}
+                    <tr {% if c.tipo=='Receita' %}class="table-success-light" {% elif c.tipo=='Despesa'
+                        %}class="table-danger-light" {% endif %}>
+                        <!-- Coluna POSICAO -->
+                        <td class="p-0">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="posicao">
+                                <input type="number" name="valor"
+                                    class="form-control form-control-sm border-0 bg-transparent text-center px-1 tiny"
+                                    value="{{ c.posicao or 0 }}" onchange="this.form.submit()">
+                            </form>
+                            {% else %}
+                            <span class="tiny">{{ c.posicao or 0 }}</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna TIPO -->
+                        <td class="p-0" data-order="{{ c.tipo }}">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="tipo">
+                                <select name="valor"
+                                    class="form-select form-select-sm border-0 bg-transparent text-center tiny fw-bold"
+                                    onchange="this.form.submit()">
+                                    <option value="Despesa" {% if c.tipo=='Despesa' %}selected{% endif %}>Despesa
+                                    </option>
+                                    <option value="Receita" {% if c.tipo=='Receita' %}selected{% endif %}>Receita
+                                    </option>
+                                </select>
+                            </form>
+                            {% else %}
+                            <span class="tiny fw-bold">{{ c.tipo }}</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna CATEGORIA -->
+                        <td class="p-0"
+                            data-order="{% for cat in categorias %}{% if c.categoria_id==cat.id %}{{ cat.nome }}{% endif %}{% endfor %}">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="categoria_id">
+                                <select name="valor"
+                                    class="form-select form-select-sm border-0 bg-transparent text-center tiny"
+                                    onchange="this.form.submit()">
+                                    <option value="">Sem Categoria</option>
+                                    {% for cat in categorias %}
+                                    <option value="{{ cat.id }}" {% if c.categoria_id==cat.id %}selected{% endif %}>{{
+                                        cat.nome }}</option>
+                                    {% endfor %}
+                                </select>
+                            </form>
+                            {% else %}
+                            <span class="tiny">
+                                {% for cat in categorias %}{% if c.categoria_id==cat.id %}{{ cat.nome }}{% endif %}{%
+                                endfor %}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna DIA VENCIMENTO -->
+                        <td class="p-0" data-order="{{ c.dia_vencimento }}">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="dia_vencimento">
+                                <input type="number" name="valor" min="1" max="31"
+                                    class="form-control form-control-sm border-0 bg-transparent text-center px-1"
+                                    value="{{ c.dia_vencimento }}" onchange="this.form.submit()">
+                            </form>
+                            {% else %}
+                            {{ c.dia_vencimento }}
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna DESCRIÇÃO -->
+                        <td class="text-start ps-2 py-1 p-0" data-order="{{ c.descricao }}">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="descricao">
+                                <input type="text" name="valor"
+                                    class="form-control form-control-sm border-0 bg-transparent fw-bold small p-1 w-100"
+                                    value="{{ c.descricao }}" onchange="this.form.submit()">
+                            </form>
+                            {% else %}
+                            <span class="fw-bold small">{{ c.descricao }}</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna VALOR ESTIMADO -->
+                        <td class="p-0" data-order="{{ c.valor_estimado }}">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="valor_estimado">
+                                <input type="text" name="valor"
+                                    class="form-control form-control-sm border-0 bg-transparent text-center fw-bold {% if c.tipo == 'Receita' %}text-success{% else %}text-danger{% endif %}"
+                                    value="{{ c.valor_estimado | br_format }}" onchange="this.form.submit()">
+                            </form>
+                            {% else %}
+                            <span
+                                class="fw-bold {% if c.tipo == 'Receita' %}text-success{% else %}text-danger{% endif %} small">
+                                R$ {{ c.valor_estimado | br_format }}
+                            </span>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna ATIVO -->
+                        <td class="p-0" data-order="{{ '1' if c.ativo else '0' }}">
+                            {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                            <form action="{{ url_for('finance.update_config_fixa') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ c.id }}">
+                                <input type="hidden" name="campo" value="ativo">
+                                <input type="hidden" name="valor" value="{{ 'true' if c.ativo else 'false' }}">
+                                <div class="form-check form-switch d-flex justify-content-center m-0">
+                                    <input class="form-check-input" type="checkbox" role="switch" {% if c.ativo
+                                        %}checked{% endif %}
+                                        onchange="this.parentElement.previousElementSibling.value = this.checked ? 'true' : 'false'; this.form.submit()">
+                                </div>
+                            </form>
+                            {% else %}
+                            <div class="form-check form-switch d-flex justify-content-center m-0">
+                                <input class="form-check-input" type="checkbox" role="switch" {% if c.ativo %}checked{%
+                                    endif %} disabled>
+                            </div>
+                            {% endif %}
+                        </td>
+
+                        <!-- Coluna AÇÕES -->
+                        {% if current_user.perfil.nome in ['Admin', 'SuperAdmin'] %}
+                        <td class="py-1" data-order="0">
+                            <form action="{{ url_for('finance.delete_config_fixa', id=c.id) }}" method="POST"
+                                onsubmit="return confirm('Excluir esta configuração?')">
+                                <button type="submit" class="btn btn-link link-secondary p-0 btn-sm">
+                                    <i class="bi bi-trash tiny"></i>
+                                </button>
+                            </form>
+                        </td>
+                        {% endif %}
+                    </tr>
+
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal para Adicionar Configuração -->
+<div class="modal fade" id="modalAddConfigFixa" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light py-2">
+                <h6 class="modal-title fw-bold text-uppercase">Nova Configuração Recorrente</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form action="{{ url_for('finance.add_config_fixa') }}" method="POST">
+                    <div class="row g-2">
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Tipo</label>
+                            <select name="tipo" class="form-select form-select-sm">
+                                <option value="Despesa">Despesa</option>
+                                <option value="Receita">Receita</option>
+                            </select>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Dia Venc.</label>
+                            <input type="number" name="dia_vencimento" class="form-control form-control-sm" min="1"
+                                max="31" value="1" required>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <label class="form-label tiny fw-bold text-uppercase">Ordem (#)</label>
+                            <input type="number" name="posicao" class="form-control form-control-sm" value="0">
+                        </div>
+                    </div>
+            </div>
+            <div class="mb-2">
+                <label class="form-label tiny fw-bold text-uppercase">Descrição</label>
+                <input type="text" name="descricao" class="form-control form-control-sm"
+                    placeholder="Ex: Aluguel, Internet..." required>
+            </div>
+            <div class="row g-2">
+                <div class="col-md-6 mb-2">
+                    <label class="form-label tiny fw-bold text-uppercase">Valor Estimado (R$)</label>
+                    <input type="text" name="valor_estimado" class="form-control form-control-sm" placeholder="0,00"
+                        required>
+                </div>
+                <div class="col-md-6 mb-2">
+                    <label class="form-label tiny fw-bold text-uppercase">Categoria</label>
+                    <select name="categoria_id" class="form-select form-select-sm">
+                        <option value="">Sem Categoria</option>
+                        {% for cat in categorias %}
+                        <option value="{{ cat.id }}">{{ cat.nome }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12 mb-2">
+                    <label class="form-label tiny fw-bold text-uppercase">Carteira</label>
+                    <select name="carteira_id" class="form-select form-select-sm">
+                        {% for c in carteiras_cadastro_objs %}
+                        <option value="{{ c.id }}" {% if c.nome==carteira_atual %}selected{% endif %}>{{ c.nome
+                            }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-primary w-100 fw-bold mt-2">SALVAR CONFIGURAÇÃO</button>
+            </form>
+        </div>
+    </div>
+</div>
+</div>
+
+<style>
+    .spreadsheet-table {
+        border-collapse: collapse;
+        font-size: 0.85rem;
+    }
+
+    .spreadsheet-table th,
+    .spreadsheet-table td {
+        border: 1px solid #dee2e6 !important;
+        padding: 0.25rem !important;
+    }
+
+    .spreadsheet-table input {
+        box-shadow: none !important;
+    }
+
+    .spreadsheet-table input:focus {
+        background-color: #f8f9fa !important;
+        outline: none;
+    }
+
+    .table-success-light {
+        background-color: rgba(25, 135, 84, 0.05) !important;
+    }
+
+    .table-danger-light {
+        background-color: rgba(220, 53, 69, 0.05) !important;
+    }
+
+    .tiny {
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#tabelaConfigFixas').DataTable({
+            "order": [[0, "asc"]],
+            "pageLength": 25,
+            "stateSave": true,
+            "lengthChange": false,
+            "language": {
+                "sEmptyTable": "Nenhum registro encontrado",
+                "sInfo": "Mostrando de _START_ até _END_ de _TOTAL_ registros",
+                "sInfoEmpty": "Mostrando 0 até 0 de 0 registros",
+                "sInfoFiltered": "(Filtrados de _MAX_ registros)",
+                "sInfoPostFix": "",
+                "sInfoThousands": ".",
+                "sLengthMenu": "_MENU_ resultados por página",
+                "sLoadingRecords": "Carregando...",
+                "sProcessing": "Processando...",
+                "sZeroRecords": "Nenhum registro encontrado",
+                "sSearch": "Pesquisar",
+                "oPaginate": {
+                    "sNext": "Próximo",
+                    "sPrevious": "Anterior",
+                    "sFirst": "Primeiro",
+                    "sLast": "Último"
+                },
+                "oAria": {
+                    "sSortAscending": ": Ordenar colunas de forma ascendente",
+                    "sSortDescending": ": Ordenar colunas de forma descendente"
+                }
+            },
+            "columnDefs": [
+                { "orderable": false, "targets": [7] }
+            ],
+            "dom": "<'row p-3'<'col-md-6'f><'col-md-6'p>>rt"
+        });
+    });
+</script>
+{% endblock %}

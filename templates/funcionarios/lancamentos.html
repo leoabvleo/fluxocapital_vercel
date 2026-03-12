@@ -1,0 +1,299 @@
+{% extends "base.html" %}
+
+{% block title %}Lançamentos – {{ func.nome }} – FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <div>
+        <a href="{{ url_for('funcionarios.funcionarios') }}" class="btn btn-outline-secondary btn-sm mb-2">
+            <i class="bi bi-arrow-left me-1"></i> Voltar
+        </a>
+        <h2 class="fw-bold mb-0 text-primary">
+            <i class="bi bi-cash-coin me-2"></i>{{ func.nome }}
+        </h2>
+        <div class="d-flex gap-2 align-items-center">
+            <small class="text-muted">Salário Bruto: <strong class="privacy-value">R$ {{ func.salario_bruto | br_format
+                    }}</strong></small>
+            <span class="badge bg-secondary bg-opacity-75" style="font-size:.7rem">{{ func.carteira_rel.nome if
+                func.carteira_rel else '—' }}</span>
+        </div>
+    </div>
+
+    {% if is_admin_or_superadmin %}
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('funcionarios.extrato', id=func.id) }}" class="btn btn-dark">
+            <i class="bi bi-journal-text me-1"></i> Ver Extrato Completo
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddLancamento">
+            <i class="bi bi-plus-lg me-1"></i> Novo Lançamento
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Seletor de Mês/Ano -->
+<form action="{{ url_for('funcionarios.lancamentos', id=func.id) }}" method="GET" class="d-flex gap-2 mb-4">
+    <label class="form-label fw-bold my-auto" style="font-size:.8rem">PERÍODO:</label>
+    <select name="mes" class="form-select form-select-sm fw-bold border-primary text-primary" style="width:auto"
+        onchange="this.form.submit()">
+        {% for i in range(1, 13) %}
+        <option value="{{ i }}" {% if i==mes_sel %}selected{% endif %}>{{ meses_br[i-1] }}</option>
+        {% endfor %}
+    </select>
+    <select name="ano" class="form-select form-select-sm fw-bold border-primary text-primary" style="width:auto"
+        onchange="this.form.submit()">
+        {% for y in range(2024, 2031) %}
+        <option value="{{ y }}" {% if y==ano_sel %}selected{% endif %}>{{ y }}</option>
+        {% endfor %}
+    </select>
+</form>
+
+<!-- Cards de resumo do mês -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="fw-bold opacity-75 mb-1" style="font-size:.72rem">SALÁRIO BRUTO</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ func.salario_bruto | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-warning text-dark">
+            <div class="card-body p-3 text-center">
+                <h6 class="fw-bold opacity-75 mb-1" style="font-size:.72rem">DESCONTO INSS (7,5%)</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ (func.salario_bruto | float * 0.075) | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-danger text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="fw-bold opacity-75 mb-1" style="font-size:.72rem">ADIANTAMENTOS MÊS</h6>
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ total_adiantamentos | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-success text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="fw-bold opacity-75 mb-1" style="font-size:.72rem">LÍQ. ESTIMADO</h6>
+                {% set inss = func.salario_bruto | float * 0.075 %}
+                <h4 class="fw-bold mb-0 privacy-value">R$ {{ (func.salario_bruto | float - inss - total_adiantamentos |
+                    float - total_descontos | float) | br_format }}</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Lançamentos -->
+<div class="card border-0 shadow-sm">
+    <div class="card-header bg-secondary bg-opacity-10 border-0 py-2 d-flex justify-content-between">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-list-ul me-2"></i>Lançamentos do Mês</h6>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0 text-center table-sm" style="font-size:.87rem">
+                <thead class="bg-light">
+                    <tr class="text-uppercase fw-bold text-muted" style="font-size:.73rem">
+                        <th style="width:15%">DATA</th>
+                        <th style="width:15%">TIPO</th>
+                        <th style="width:25%">OBSERVAÇÃO</th>
+                        <th style="width:15%">VALOR</th>
+                        <th style="width:20%">STATUS</th>
+                        {% if is_admin_or_superadmin %}<th style="width:10%">AÇÃO</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for l in lancamentos %}
+                    <tr {% if l.tipo=='Desconto' %}class="table-danger" {% endif %}>
+                        <td>{{ l.data.strftime('%d/%m/%Y') }}</td>
+                        <td>
+                            <span
+                                class="badge {% if l.tipo == 'Adiantamento' %}bg-warning text-dark{% else %}bg-danger{% endif %}">
+                                {% if l.tipo == 'Adiantamento' %}
+                                <i class="bi bi-cash me-1"></i>
+                                {% else %}
+                                <i class="bi bi-dash-circle me-1"></i>
+                                {% endif %}
+                                {{ l.tipo }}
+                            </span>
+                        </td>
+                        <td class="text-start ps-2">{{ l.observacao or '—' }}</td>
+                        <td
+                            class="fw-bold privacy-value {% if l.tipo == 'Adiantamento' %}text-warning{% else %}text-danger{% endif %}">
+                            R$ {{ l.valor | br_format }}
+                        </td>
+                        <td>
+                            {% if l.folha_id %}
+                            <span class="badge bg-success" title="Descontado na folha {{ l.folha_rel.mes_referencia }}">
+                                <i class="bi bi-check-circle-fill me-1"></i>Descontado
+                            </span>
+                            {% else %}
+                            <span class="badge bg-secondary opacity-50">
+                                <i class="bi bi-clock me-1"></i>Pendente
+                            </span>
+                            {% endif %}
+                        </td>
+                        {% if is_admin_or_superadmin %}
+                        <td>
+                            {% if not l.folha_id %}
+                            <div class="d-flex justify-content-center gap-2">
+                                <button type="button" class="btn btn-link text-primary btn-sm p-0"
+                                    onclick="abrirModalEdit('{{ l.id }}', '{{ l.tipo }}', '{{ l.valor }}', '{{ l.data.strftime('%Y-%m-%d') }}', '{{ l.observacao or '' }}')">
+                                    <i class="bi bi-pencil-square"></i>
+                                </button>
+                                <form
+                                    action="{{ url_for('funcionarios.delete_lancamento', id=l.id, mes=mes_sel, ano=ano_sel) }}"
+                                    method="POST" onsubmit="return confirm('Remover lançamento?')">
+                                    <button type="submit" class="btn btn-link text-danger btn-sm p-0">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <i class="bi bi-lock-fill text-muted"
+                                title="Lançamento processado não pode ser removido"></i>
+                            {% endif %}
+                        </td>
+                        {% endif %}
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="5" class="text-center py-4 text-muted small">
+                            <i class="bi bi-inbox me-1"></i>Nenhum lançamento neste período.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if lancamentos %}
+                <tfoot class="bg-light-subtle fw-bold small">
+                    <tr>
+                        <td colspan="3" class="text-end pe-2">TOTAL ADIANTAMENTOS:</td>
+                        <td class="text-warning privacy-value">R$ {{ total_adiantamentos | br_format }}</td>
+                        {% if is_admin_or_superadmin %}<td></td>{% endif %}
+                    </tr>
+                    <tr>
+                        <td colspan="3" class="text-end pe-2">TOTAL OUTROS DESCONTOS:</td>
+                        <td class="text-danger privacy-value">R$ {{ total_descontos | br_format }}</td>
+                        {% if is_admin_or_superadmin %}<td></td>{% endif %}
+                    </tr>
+                    <tr class="table-dark">
+                        <td colspan="3" class="text-end pe-2">TOTAL GERAL A DESCONTAR:</td>
+                        <td class="privacy-value">R$ {{ (total_adiantamentos + total_descontos) | br_format }}</td>
+                        {% if is_admin_or_superadmin %}<td></td>{% endif %}
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Novo Lançamento -->
+{% if is_admin_or_superadmin %}
+<div class="modal fade" id="modalAddLancamento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light py-2">
+                <h6 class="modal-title fw-bold text-uppercase">
+                    <i class="bi bi-plus-circle me-1"></i>Novo Lançamento – {{ func.nome }}
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form action="{{ url_for('funcionarios.add_lancamento', id=func.id, mes=mes_sel, ano=ano_sel) }}"
+                    method="POST">
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">TIPO</label>
+                            <select name="tipo" class="form-select form-select-sm">
+                                <option value="Adiantamento">💰 Adiantamento</option>
+                                <option value="Desconto">➖ Desconto</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">DATA</label>
+                            <input type="date" name="data" class="form-control form-control-sm" value="{{ hoje }}"
+                                required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size:.75rem">VALOR (R$)</label>
+                        <input type="text" name="valor" class="form-control form-control-sm" placeholder="0,00"
+                            required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="font-size:.75rem">OBSERVAÇÃO</label>
+                        <input type="text" name="observacao" class="form-control form-control-sm"
+                            placeholder="Ex: 1ª quinzena, vale transporte...">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="bi bi-check-lg me-1"></i>SALVAR LANÇAMENTO
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<!-- Modal Editar Lançamento -->
+<div class="modal fade" id="modalEditLancamento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-primary bg-opacity-10 py-2">
+                <h6 class="modal-title fw-bold text-uppercase text-primary">
+                    <i class="bi bi-pencil-square me-1"></i>Editar Lançamento
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form id="formEditLancamento" method="POST">
+                    <!-- Action será preenchida via JS -->
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">TIPO</label>
+                            <select name="tipo" id="edit-tipo" class="form-select form-select-sm">
+                                <option value="Adiantamento">💰 Adiantamento</option>
+                                <option value="Desconto">➖ Desconto</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">DATA</label>
+                            <input type="date" name="data" id="edit-data" class="form-control form-control-sm" required>
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size:.75rem">VALOR (R$)</label>
+                        <input type="text" name="valor" id="edit-valor" class="form-control form-control-sm" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label fw-bold" style="font-size:.75rem">OBSERVAÇÃO</label>
+                        <input type="text" name="observacao" id="edit-obs" class="form-control form-control-sm">
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold">
+                        <i class="bi bi-check-lg me-1"></i>ATUALIZAR LANÇAMENTO
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function abrirModalEdit(id, tipo, valor, data, obs) {
+        document.getElementById('edit-tipo').value = tipo;
+        document.getElementById('edit-data').value = data;
+        document.getElementById('edit-valor').value = valor.replace('.', ',');
+        document.getElementById('edit-obs').value = obs;
+
+        // Formata a URL de edição com os parâmetros atuais de mês/ano para o redirecionamento
+        const mes = "{{ mes_sel }}";
+        const ano = "{{ ano_sel }}";
+        document.getElementById('formEditLancamento').action = `/funcionarios/lancamentos/${id}/edit?mes=${mes}&ano=${ano}`;
+
+        new bootstrap.Modal(document.getElementById('modalEditLancamento')).show();
+    }
+</script>
+{% endif %}
+
+{% endblock %}

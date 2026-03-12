@@ -1,0 +1,529 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Resumo Cards (Grid Layout for Responsiveness) -->
+    <div class="col-12 col-lg-8">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pb-0">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-wallet2 me-2 text-primary"></i>Resumo Financeiro</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3 row-cols-2 row-cols-md-3">
+                    <div class="col">
+                        <div class="p-3 border rounded-3 bg-body-tertiary text-center h-100">
+                            <div class="text-xs text-muted text-uppercase fw-bold mb-1">Investido</div>
+                            <h5 class="fw-bold mb-0 privacy-value">R$ {{ total_pago | br_format }}</h5>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border rounded-3 bg-body-tertiary text-center h-100">
+                            <div class="text-xs text-muted text-uppercase fw-bold mb-1">Patrimônio</div>
+                            <h5 class="fw-bold text-primary mb-0 privacy-value">R$ {{ patrimonio_atual | br_format }}
+                            </h5>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border rounded-3 bg-body-tertiary text-center h-100">
+                            <div class="text-xs text-muted text-uppercase fw-bold mb-1">Lucro Cart.</div>
+                            <h5
+                                class="fw-bold privacy-value {% if valorizacao_total_rs >= 0 %}text-success{% else %}text-danger{% endif %} mb-0">
+                                R$ {{ valorizacao_total_rs | br_format }}
+                            </h5>
+                            <small
+                                class="privacy-value {% if valorizacao_total_rs >= 0 %}text-success{% else %}text-danger{% endif %} fw-semibold">
+                                <i
+                                    class="bi {% if valorizacao_total_rs >= 0 %}bi-arrow-up-short{% else %}bi-arrow-down-short{% endif %}"></i>
+                                {{ valorizacao_total_percent | br_format }}%
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border rounded-3 bg-body-tertiary text-center h-100">
+                            <div class="text-xs text-muted text-uppercase fw-bold mb-1">Lucro Vendas</div>
+                            <h5
+                                class="fw-bold mb-0 privacy-value {% if total_lucro_vendas >= 0 %}text-info{% else %}text-danger{% endif %}">
+                                R$ {{ total_lucro_vendas | br_format }}
+                            </h5>
+                            <small
+                                class="privacy-value fw-bold {% if lucro_vendas_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {% if lucro_vendas_pct >= 0 %}↑{% else %}↓{% endif %} {{ lucro_vendas_pct | br_format
+                                }}%
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="p-3 border rounded-3 bg-body-tertiary text-center h-100">
+                            <div class="text-xs text-muted text-uppercase fw-bold mb-1">Dividendos</div>
+                            <h5 class="fw-bold text-success mb-0 privacy-value">R$ {{ total_dividendos | br_format }}
+                            </h5>
+                            <small class="privacy-value fw-bold text-success">
+                                ↑ {{ dividendos_pct | br_format }}%
+                            </small>
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div
+                            class="p-3 border rounded-3 bg-body-tertiary text-center h-100 position-relative overflow-hidden">
+                            <div class="text-xs text-muted text-uppercase fw-bold mb-1">Ganhos Totais</div>
+                            <h5 class="fw-bold mb-0 privacy-value {% if ganhos_totais_rs >= 0 %}text-purple{% else %}text-danger{% endif %}"
+                                {% if ganhos_totais_rs>= 0 %}style="color: #6f42c1;"{% endif %}>R$ {{ ganhos_totais_rs |
+                                br_format }}</h5>
+                            <small class="privacy-value fw-semibold {% if ganhos_totais_rs < 0 %}text-danger{% endif %}"
+                                {% if ganhos_totais_rs>= 0 %}style="color: #6f42c1;"{% endif %}>
+                                {{ ganhos_totais_pct | br_format }}%
+                            </small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chart Card -->
+    <div class="col-12 col-lg-4">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0">
+                <h5 class="mb-0 fw-bold"><i class="bi bi-pie-chart-fill me-2 text-primary"></i>Alocação</h5>
+            </div>
+            <div class="card-body p-0 d-flex align-items-center justify-content-center" style="min-height: 250px;">
+                <div id="chart_div" style="width: 100%; height: 250px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Categorized Assets Section -->
+<div class="mb-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h5 class="mb-0 fw-bold"><i class="bi bi-layers-half me-2 text-primary"></i>Meus Ativos ({{
+            consolidado_lista|length }})</h5>
+    </div>
+
+    <div class="category-list">
+        {% for cat in categorias_agrupadas %}
+        <div class="category-card mb-2 border rounded-3 overflow-hidden shadow-sm">
+            <!-- Category Header -->
+            <div class="category-header p-3 bg-body-tertiary d-flex align-items-center cursor-pointer"
+                data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="false">
+
+                <div class="category-icon-container me-3 d-flex align-items-center justify-content-center rounded-3 bg-dark text-white"
+                    style="width: 45px; height: 45px;">
+                    <i class="bi {{ cat.icone }} fs-4"></i>
+                </div>
+
+                <div class="flex-grow-1">
+                    <div class="row align-items-center gx-2">
+                        <div class="col-12 col-md-2">
+                            <h6 class="mb-0 fw-bold">{{ cat.nome }}</h6>
+                            <small class="text-muted">{{ cat.qtd_ativos }} ativos</small>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">Investido</div>
+                            <div class="fw-bold privacy-value small">R$ {{ cat.total_investido | br_format }}</div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">V. Mercado</div>
+                            <div class="fw-bold privacy-value small">R$ {{ cat.total_valor_mercado | br_format }}</div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">Lucro R$</div>
+                            <div
+                                class="fw-bold privacy-value small {% if cat.total_lucro_rs >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                R$ {{ cat.total_lucro_rs | br_format }}
+                            </div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-center">
+                            <div class="text-xs text-muted text-uppercase">Variação %</div>
+                            <div
+                                class="fw-bold small {% if cat.total_lucro_pct >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                {{ cat.total_lucro_pct | br_format }}%
+                                <i
+                                    class="bi {% if cat.total_lucro_pct >= 0 %}bi-arrow-up-short{% else %}bi-arrow-down-short{% endif %}"></i>
+                            </div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">Proventos</div>
+                            <div class="fw-bold text-success privacy-value small">R$ {{ cat.total_proventos | br_format
+                                }}
+                            </div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">YOC</div>
+                            <div class="fw-bold text-success small">{{ cat.yoc_categoria | br_format }}%</div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">DY</div>
+                            <div class="fw-bold text-success small">{{ cat.dy_categoria | br_format }}%</div>
+                        </div>
+                        <div class="col-4 col-md text-center text-md-end">
+                            <div class="text-xs text-muted text-uppercase">% Cart.</div>
+                            <div class="fw-bold small">{{ cat.peso_carteira | br_format }}%</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="ms-3">
+                    <i class="bi bi-chevron-down collapse-icon"></i>
+                </div>
+            </div>
+
+            <!-- Category Assets Table -->
+            <div id="collapse-{{ loop.index }}" class="collapse">
+                <div class="card-body p-0 border-top">
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0 table-sm">
+                            <thead class="bg-light-subtle">
+                                <tr class="text-muted small text-uppercase">
+                                    <th class="ps-4 sortable" data-sort="text">Ativo <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="num">Qtd <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="brl">P. Médio <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="brl">P. Atual <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="brl">Investido <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="brl">V. Mercado <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="brl">Lucro R$ <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-center sortable" data-sort="pct">Variação % <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="brl">Proventos <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="pct">YOC <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="pct">DY <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-end sortable" data-sort="pct">% Cart. <i
+                                            class="bi bi-chevron-expand sort-icon"></i></th>
+                                    <th class="text-center pe-4">Ação</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for a in cat.ativos %}
+                                <tr>
+                                    <td class="ps-4">
+                                        <a href="{{ url_for('detalhe_ativo', ticker=a.ticker) }}"
+                                            class="text-decoration-none fw-bold text-primary">
+                                            {{ a.ticker }}
+                                        </a>
+                                    </td>
+                                    <td class="text-end">{{ a.qtd_total | clean_qtd }}</td>
+                                    <td class="text-end text-muted privacy-value">R$ {{ a.preco_medio | br_format }}
+                                    </td>
+                                    <td class="text-end privacy-value">
+                                        R$ {{ a.preco_atual | br_format }}
+                                        {% if is_admin_or_superadmin %}
+                                        <a href="#" class="text-decoration-none ms-1 text-muted d-print-none"
+                                            onclick="abrirModalPreco('{{ a.ticker }}', '{{ a.preco_atual }}')"
+                                            title="Atualizar Preço">
+                                            <i class="bi bi-pencil-square" style="font-size: 0.8rem;"></i>
+                                        </a>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-end text-muted privacy-value">R$ {{ a.total_pago | br_format }}</td>
+                                    <td class="text-end fw-bold privacy-value">R$ {{ a.valor_mercado | br_format }}</td>
+                                    <td
+                                        class="text-end fw-bold privacy-value {% if a.lucro_rs >= 0 %}text-success{% else %}text-danger{% endif %}">
+                                        R$ {{ a.lucro_rs | br_format }}
+                                    </td>
+                                    <td class="text-center">
+                                        <span
+                                            class="badge {% if a.lucro_pct >= 0 %}bg-success{% else %}bg-danger{% endif %} rounded-pill privacy-value">
+                                            {{ a.lucro_pct | br_format }}%
+                                        </span>
+                                    </td>
+                                    <td class="text-end text-success fw-semibold privacy-value">R$ {{
+                                        a.total_divs_recebidos | br_format }}</td>
+                                    <td class="text-end text-success small">{{ a.yoc | br_format }}%</td>
+                                    <td class="text-end text-success small">{{ a.dy | br_format }}%</td>
+                                    <td class="text-end text-muted small privacy-value">{{ a.peso_carteira | br_format
+                                        }}%</td>
+                                    <td class="text-center pe-4">
+                                        {% if is_admin_or_superadmin %}
+                                        <button class="btn btn-outline-warning btn-sm py-0 px-2 rounded-pill"
+                                            onclick="abrirModalVenda('{{ a.ticker }}', '{{ a.qtd_total }}')"
+                                            title="Vender">
+                                            <i class="bi bi-cart-dash"></i>
+                                        </button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+
+    .text-xs {
+        font-size: 0.7rem;
+    }
+
+    .category-header {
+        transition: background-color 0.2s;
+        border-left: 4px solid transparent;
+    }
+
+    .category-header:hover {
+        background-color: var(--bs-secondary-bg) !important;
+    }
+
+    .category-card {
+        transition: all 0.3s ease;
+    }
+
+    .category-header[aria-expanded="true"] {
+        border-left-color: var(--bs-primary);
+        background-color: var(--bs-tertiary-bg);
+    }
+
+    .category-header[aria-expanded="true"] .collapse-icon {
+        transform: rotate(180deg);
+    }
+
+    .collapse-icon {
+        transition: transform 0.3s ease;
+    }
+
+    .category-icon-container {
+        flex-shrink: 0;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    [data-bs-theme="dark"] .category-icon-container {
+        background-color: #2b3035 !important;
+    }
+
+    .table-sm th {
+        padding-top: 0.5rem;
+        padding-bottom: 0.5rem;
+        font-weight: 600;
+    }
+
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    .sortable:hover {
+        color: var(--bs-primary) !important;
+    }
+
+    .sort-icon {
+        font-size: 0.6rem;
+        opacity: 0.4;
+        margin-left: 2px;
+    }
+
+    .sortable.asc .sort-icon::before,
+    .sortable.desc .sort-icon::before {
+        opacity: 1;
+    }
+
+    .sortable.asc .sort-icon {
+        opacity: 1;
+    }
+
+    .sortable.desc .sort-icon {
+        opacity: 1;
+    }
+</style>
+
+<!-- Modais (Mantidos e Estilizados) -->
+<div class="modal fade" id="modalPreco" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 pb-0">
+                <h6 class="modal-title fw-bold">Ajustar Preço</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body text-center pt-2">
+                <form action="/atualizar_preco_manual" method="POST">
+                    <input type="hidden" name="ticker" id="m_ticker">
+                    <div class="mb-3">
+                        <span class="badge bg-primary fs-6 px-3" id="d_ticker"></span>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="number" step="0.000001" name="preco_atual" id="m_preco"
+                            class="form-control text-center fw-bold" placeholder="Preço" required>
+                        <label for="m_preco">Preço Atual (R$)</label>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold rounded-3">Salvar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalVenda" tabindex="-1">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning-subtle border-0">
+                <h6 class="modal-title fw-bold text-warning-emphasis">Registrar Venda</h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form action="/vender" method="POST" onsubmit="return validarVenda()">
+                    <input type="hidden" name="ticker" id="v_ticker">
+                    <input type="hidden" id="v_saldo_real">
+
+                    <div class="text-center mb-3">
+                        <span class="badge bg-dark mb-1 fs-6" id="v_ticker_display"></span>
+                        <div class="text-muted small">Disponível: <b id="v_saldo_display"></b></div>
+                    </div>
+
+                    <div class="form-floating mb-2">
+                        <input type="number" step="any" name="quantidade" id="v_qtd_input" class="form-control"
+                            placeholder="Qtd" required>
+                        <label>Quantidade</label>
+                    </div>
+                    <div class="form-floating mb-2">
+                        <input type="number" step="0.01" name="preco_venda" class="form-control" placeholder="Preço"
+                            required>
+                        <label>Preço Venda (R$)</label>
+                    </div>
+                    <div class="form-floating mb-3">
+                        <input type="date" name="data_venda" class="form-control" value="{{ hoje }}" required>
+                        <label>Data</label>
+                    </div>
+                    <button type="submit" class="btn btn-warning w-100 fw-bold rounded-3">Confirmar Venda</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+
+<script>
+    // --- Dark Mode Chart Handling ---
+    google.charts.load('current', { 'packages': ['corechart'] });
+    google.charts.setOnLoadCallback(drawPieChart);
+
+    // Re-draw chart on theme toggle or resize
+    window.addEventListener('resize', drawPieChart);
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        setTimeout(drawPieChart, 100); // Wait for CSS transition
+    });
+
+    function drawPieChart() {
+        var data = google.visualization.arrayToDataTable([
+            ['Cat', 'Val'],
+            {% for cat, val in dados_grafico.items() %} ['{{ cat }}', {{ val }}], {% endfor %}
+        ]);
+
+    // Detect current theme color
+    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const textColor = isDark ? '#f8f9fa' : '#333';
+
+    var options = {
+        pieHole: 0.5,
+        chartArea: { width: '90%', height: '85%' },
+        legend: { position: 'right', textStyle: { color: textColor, fontSize: 11 } },
+        backgroundColor: 'transparent',
+        pieSliceBorderColor: isDark ? '#343a40' : '#fff',
+        slices: {
+            0: { color: '#0d6efd' },
+            1: { color: '#198754' },
+            2: { color: '#ffc107' },
+            3: { color: '#dc3545' },
+            4: { color: '#6610f2' }
+        }
+    };
+
+    new google.visualization.PieChart(document.getElementById('chart_div')).draw(data, options);
+    }
+
+    // --- Modal Logic ---
+    const modalPreco = new bootstrap.Modal(document.getElementById('modalPreco'));
+    const modalVenda = new bootstrap.Modal(document.getElementById('modalVenda'));
+
+    window.abrirModalPreco = function (ticker, preco) {
+        document.getElementById('m_ticker').value = ticker;
+        document.getElementById('d_ticker').innerText = ticker;
+        document.getElementById('m_preco').value = preco;
+        modalPreco.show();
+    }
+
+    window.abrirModalVenda = function (ticker, saldo) {
+        document.getElementById('v_ticker').value = ticker;
+        document.getElementById('v_ticker_display').innerText = ticker;
+        document.getElementById('v_saldo_real').value = saldo;
+        document.getElementById('v_saldo_display').innerText = parseFloat(saldo).toLocaleString('pt-BR');
+        modalVenda.show();
+    }
+
+    window.validarVenda = function () {
+        if (parseFloat(document.getElementById('v_qtd_input').value) > parseFloat(document.getElementById('v_saldo_real').value)) {
+            alert('Erro: Saldo insuficiente!'); return false;
+        }
+        return true;
+    }
+
+    // --- Sortable Tables ---
+    document.querySelectorAll('.sortable').forEach(th => {
+        th.addEventListener('click', function () {
+            const table = this.closest('table');
+            const tbody = table.querySelector('tbody');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            const colIndex = Array.from(this.parentNode.children).indexOf(this);
+            const sortType = this.dataset.sort;
+
+            // Toggle direction
+            const isAsc = this.classList.contains('asc');
+            const dir = isAsc ? -1 : 1;
+
+            // Reset all headers in this table
+            this.closest('tr').querySelectorAll('.sortable').forEach(h => {
+                h.classList.remove('asc', 'desc');
+                h.querySelector('.sort-icon').className = 'bi bi-chevron-expand sort-icon';
+            });
+
+            this.classList.add(isAsc ? 'desc' : 'asc');
+            this.querySelector('.sort-icon').className = isAsc
+                ? 'bi bi-chevron-down sort-icon'
+                : 'bi bi-chevron-up sort-icon';
+
+            // Parse value based on type
+            function parseVal(td, type) {
+                const text = td.textContent.trim();
+                if (type === 'text') return text.toLowerCase();
+                // Remove R$, ., %, spaces and parse as number
+                const num = text.replace(/[R$\.\s%]/g, '').replace(',', '.');
+                return parseFloat(num) || 0;
+            }
+
+            rows.sort((a, b) => {
+                const aVal = parseVal(a.children[colIndex], sortType);
+                const bVal = parseVal(b.children[colIndex], sortType);
+                if (sortType === 'text') {
+                    return dir * aVal.localeCompare(bVal, 'pt-BR');
+                }
+                return dir * (aVal - bVal);
+            });
+
+            rows.forEach(row => tbody.appendChild(row));
+        });
+    });
+</script>
+{% endblock %}

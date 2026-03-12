@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block title %}Confirmar Importação - FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="row justify-content-center">
+        <div class="col-lg-12">
+            <div class="card border-0 shadow-sm">
+                <div class="card-header bg-white border-bottom py-3">
+                    <div class="d-flex align-items-center justify-content-between">
+                        <h5 class="mb-0 fw-bold text-primary">
+                            <i class="bi bi-check2-circle me-2"></i>Revisar {{ 'Aportes' if is_aporte else 'Proventos'
+                            }} para Importação
+                        </h5>
+                        <span class="badge bg-primary-subtle text-primary">{{ registros|length }} itens
+                            encontrados</span>
+                    </div>
+                </div>
+                <div class="card-body p-0">
+                    <div class="p-3 bg-light-subtle border-bottom">
+                        <p class="mb-0 small text-muted">
+                            <i class="bi bi-info-circle me-1"></i>
+                            Revise os dados abaixo. Você pode editar os campos diretamente ou marcar para excluir itens
+                            que não deseja importar (como taxas ou ativos incorretos).
+                        </p>
+                    </div>
+
+                    <form action="{{ '/salvar_confirmacao_aportes' if is_aporte else '/salvar_confirmacao_proventos' }}"
+                        method="POST" id="formConfirmacao">
+                        <div class="table-responsive">
+                            <table class="table table-hover align-middle mb-0">
+                                <thead class="bg-light text-uppercase small fw-bold text-muted">
+                                    <tr>
+                                        <th class="ps-4" style="width: 140px;">Ativo</th>
+                                        {% if not is_aporte %}
+                                        <th style="width: 180px;">Categoria Ativo</th>
+                                        {% endif %}
+                                        <th style="width: 200px;">{{ 'Tipo' if is_aporte else 'Tipo de Provento' }}</th>
+                                        <th style="width: 140px;">Data</th>
+                                        <th>Valor ($)</th>
+                                        <th class="text-center pe-4" style="width: 100px;">Excluir</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for reg in registros %}
+                                    <tr class="import-row">
+                                        <td class="ps-4">
+                                            {% if is_admin_or_superadmin %}
+                                            <input type="text" name="ticker[]"
+                                                class="form-control form-control-sm fw-bold border-0 bg-transparent text-primary"
+                                                value="{{ reg.ticker }}" required>
+                                            {% else %}
+                                            <span class="fw-bold text-primary">{{ reg.ticker }}</span>
+                                            {% endif %}
+                                        </td>
+                                        {% if not is_aporte %}
+                                        <td>
+                                            {% if is_admin_or_superadmin %}
+                                            <select name="categoria_ativo[]"
+                                                class="form-select form-select-sm border-0 bg-transparent">
+                                                <option value="">-- Selecione --</option>
+                                                {% for cat in categorias_ativos %}
+                                                <option value="{{ cat.id }}" {{ 'selected' if
+                                                    reg.categoria_ativo_id==cat.id or reg.categoria_ativo_nome==cat.nome
+                                                    }}>
+                                                    {{ cat.nome }}
+                                                </option>
+                                                {% endfor %}
+                                            </select>
+                                            {% else %}
+                                            <span>{{ reg.categoria_ativo_nome }}</span>
+                                            {% endif %}
+                                        </td>
+                                        {% endif %}
+                                        <td>
+                                            {% if is_admin_or_superadmin %}
+                                            <select name="tipo[]"
+                                                class="form-select form-select-sm border-0 bg-transparent">
+                                                {% if is_aporte %}
+                                                {% for cat in categorias_ativos %}
+                                                <option value="{{ cat.nome }}" {{ 'selected' if reg.categoria==cat.nome
+                                                    }}>
+                                                    {{ cat.nome }}
+                                                </option>
+                                                {% endfor %}
+                                                {% else %}
+                                                {% for cp in categorias_proventos %}
+                                                <option value="{{ cp.nome }}" {{ 'selected' if reg.tipo==cp.nome }}>
+                                                    {{ cp.nome }}
+                                                </option>
+                                                {% endfor %}
+                                                {% endif %}
+                                            </select>
+                                            {% else %}
+                                            <span>{{ reg.categoria if is_aporte else reg.tipo }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {% if is_admin_or_superadmin %}
+                                            <input type="date" name="data[]"
+                                                class="form-control form-control-sm border-0 bg-transparent"
+                                                value="{{ reg.data }}" required>
+                                            {% else %}
+                                            <span>{{ reg.data }}</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <div class="input-group input-group-sm border-0">
+                                                <span class="input-group-text bg-transparent border-0 pe-1">R$</span>
+                                                {% if is_admin_or_superadmin %}
+                                                <input type="number" step="0.01" name="valor[]"
+                                                    class="form-control form-control-sm border-0 bg-transparent fw-bold text-success"
+                                                    value="{{ reg.valor }}" required>
+                                                {% else %}
+                                                <span
+                                                    class="form-control form-control-sm border-0 bg-transparent fw-bold text-success">{{
+                                                    reg.valor | br_currency }}</span>
+                                                {% endif %}
+                                            </div>
+                                        </td>
+                                        <td class="text-center pe-4">
+                                            {% if is_admin_or_superadmin %}
+                                            <div class="form-check d-inline-block">
+                                                <input class="form-check-input check-excluir" type="checkbox"
+                                                    name="excluir[]" value="{{ loop.index0 }}">
+                                            </div>
+                                            {% else %}
+                                            -
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div class="card-footer bg-white border-top p-4">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <a href="{{ url_for('aportes' if is_aporte else 'proventos') }}"
+                                    class="btn btn-outline-secondary px-4 fw-bold">
+                                    <i class="bi bi-arrow-left me-2"></i>Cancelar
+                                </a>
+                                {% if is_admin_or_superadmin %}
+                                <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">
+                                    <i class="bi bi-cloud-upload me-2"></i>Confirmar e Salvar
+                                </button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .import-row.excluded {
+        opacity: 0.5;
+        background-color: rgba(0, 0, 0, 0.05) !important;
+    }
+
+    .import-row.excluded input,
+    .import-row.excluded select {
+        text-decoration: line-through;
+    }
+
+    .import-row input:focus,
+    .import-row select:focus {
+        box-shadow: none;
+        background-color: #fff !important;
+        border: 1px solid #dee2e6 !important;
+    }
+
+    .form-control-sm,
+    .form-select-sm {
+        font-size: 0.9rem;
+    }
+
+    .input-group-text {
+        font-size: 0.9rem;
+    }
+
+    .import-row {
+        cursor: pointer;
+        transition: background-color 0.15s ease-in-out;
+    }
+
+    /* Previne que cliques nos inputs disparem o toggle da linha duas vezes */
+    .import-row input,
+    .import-row select {
+        cursor: text;
+    }
+
+    .check-excluir {
+        cursor: pointer;
+        transform: scale(1.2);
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const rows = document.querySelectorAll('.import-row');
+
+        rows.forEach(row => {
+            const checkbox = row.querySelector('.check-excluir');
+
+            // Toggle checkbox when clicking the row
+            row.addEventListener('click', function (e) {
+                // Ignore if clicking interactive elements (checkbox is handled below)
+                if (['INPUT', 'SELECT', 'A', 'BUTTON'].includes(e.target.tagName)) {
+                    return;
+                }
+
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change'));
+            });
+
+            // Prevent double-toggle when clicking the checkbox itself
+            checkbox.addEventListener('click', function (e) {
+                e.stopPropagation();
+            });
+
+            checkbox.addEventListener('change', function () {
+                if (this.checked) {
+                    row.classList.add('excluded', 'table-light');
+                } else {
+                    row.classList.remove('excluded', 'table-light');
+                }
+            });
+
+            // Sync initial state
+            if (checkbox.checked) {
+                row.classList.add('excluded', 'table-light');
+            }
+        });
+    });
+</script>
+{% endblock %}

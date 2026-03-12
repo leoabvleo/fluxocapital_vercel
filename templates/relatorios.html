@@ -1,0 +1,341 @@
+{% extends "base.html" %}
+
+{% block title %}Relatórios - FluxoCapital{% endblock %}
+
+{% block extra_head %}
+<style>
+    @media print {
+
+        .navbar,
+        .btn,
+        .card-header i,
+        .card-header .btn,
+        .d-print-none,
+        form,
+        .footer {
+            display: none !important;
+        }
+
+        .card {
+            border: none !important;
+            box-shadow: none !important;
+        }
+
+        body {
+            background-color: white !important;
+        }
+
+        .container {
+            max-width: 100% !important;
+            width: 100% !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .table {
+            border: 1px solid #dee2e6 !important;
+        }
+
+        @page {
+            size: landscape;
+            margin: 1cm;
+        }
+
+        .col-qtd {
+            width: 90px !important;
+        }
+
+        .print-header {
+            display: block !important;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    }
+
+    .print-header {
+        display: none;
+    }
+
+    .sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+    .sortable:hover {
+        background-color: #f8f9fa !important;
+    }
+</style>
+
+<script>
+    function sortTable(n) {
+        var table = document.getElementById("relatoriosTable");
+        var tbody = table.querySelector("tbody");
+        var rows = Array.from(tbody.querySelectorAll("tr")).filter(row => !row.classList.contains("total-row") && !row.querySelector("td[colspan]"));
+
+        if (rows.length === 0) return;
+
+        var isNumeric = [2, 3].includes(n);
+        var dir = table.getAttribute("data-sort-dir") === "asc" ? "desc" : "asc";
+        table.setAttribute("data-sort-dir", dir);
+        table.setAttribute("data-sort-col", n);
+
+        rows.sort(function (a, b) {
+            var cellA = a.cells[n];
+            var cellB = b.cells[n];
+
+            var valA = cellA.hasAttribute("data-sort") ? cellA.getAttribute("data-sort") : cellA.innerText.trim();
+            var valB = cellB.hasAttribute("data-sort") ? cellB.getAttribute("data-sort") : cellB.innerText.trim();
+
+            if (isNumeric) {
+                valA = parseFloat(valA) || 0;
+                valB = parseFloat(valB) || 0;
+                return dir === "asc" ? valA - valB : valB - valA;
+            } else {
+                return dir === "asc" ? valA.localeCompare(valB) : valB.localeCompare(valA);
+            }
+        });
+
+        var totalRow = tbody.querySelector(".total-row");
+        var emptyRow = tbody.querySelector(".empty-row");
+
+        rows.forEach(row => tbody.appendChild(row));
+
+        if (totalRow) tbody.appendChild(totalRow);
+        if (emptyRow) tbody.appendChild(emptyRow);
+    }
+</script>
+{% endblock %}
+
+{% block content %}
+<div class="print-header">
+    <h2 class="fw-bold">FluxoCapital - Relatório de {% if filtros.tipo_relatorio == 'custodia' %}Custódia{% else %}Proventos{%
+        endif %}</h2>
+    <p class="mb-1"><strong>Período:</strong>
+        {% if filtros.data_inicio %}{{ filtros.data_inicio.split('-')|reverse|join('/') }}{% else %}Início{% endif %} a
+        {% if filtros.data_fim %}{{ filtros.data_fim.split('-')|reverse|join('/') }}{% else %}Hoje{% endif %}
+    </p>
+    <p class="mb-1"><strong>Carteira:</strong> {{ filtros.carteira_sel or carteira_atual }}</p>
+    <p class="text-muted small">Gerado em: {{ now_date }}</p>
+</div>
+<div class="row g-4 d-print-block">
+    <!-- Filtros Card -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom">
+                <h5 class="mb-0 fw-bold text-primary"><i class="bi bi-filter me-2"></i>Filtros do Relatório</h5>
+            </div>
+            <div class="card-body">
+                <form action="/relatorios" method="POST" class="row g-3 align-items-end">
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Relatório</label>
+                        <select id="tipo_relatorio_select" name="tipo_relatorio" class="form-select"
+                            onchange="toggleTipoProvento()">
+                            <option value="proventos" {% if filtros.tipo_relatorio=='proventos' %}selected{% endif %}>
+                                Proventos</option>
+                            <option value="custodia" {% if filtros.tipo_relatorio=='custodia' %}selected{% endif %}>
+                                Custódia</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Carteira</label>
+                        <select name="carteira_sel" class="form-select">
+                            {% for c in carteiras_disponiveis %}
+                            <option value="{{ c }}" {% if filtros.carteira_sel==c %}selected{% endif %}>{{ c }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Categoria</label>
+                        <select name="categoria_id" class="form-select">
+                            <option value="TODOS" {% if filtros.categoria_id=='TODOS' or not filtros.categoria_id
+                                %}selected{% endif %}>Todas</option>
+                            {% for cat in categorias_ativos %}
+                            <option value="{{ cat.id }}" {% if filtros.categoria_id==cat.id|string %}selected{% endif
+                                %}>{{ cat.nome }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Ativo</label>
+                        <select name="ticker" class="form-select">
+                            <option value="TODOS" {% if filtros.ticker=='TODOS' or not filtros.ticker %}selected{% endif
+                                %}>Todos os Ativos
+                            </option>
+                            {% for t in tickers %}
+                            <option value="{{ t }}" {% if filtros.ticker==t %}selected{% endif %}>{{ t }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2" id="div_tipo_provento">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Tipo</label>
+                        <select name="tipo" class="form-select">
+                            <option value="TODOS" {% if filtros.tipo=='TODOS' or not filtros.tipo %}selected{% endif %}>
+                                Todos os Tipos</option>
+                            {% for tp in tipos %}
+                            <option value="{{ tp }}" {% if filtros.tipo==tp %}selected{% endif %}>{{ tp }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Data Inicial</label>
+                        <input type="date" name="data_inicio" class="form-control" value="{{ filtros.data_inicio }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label class="form-label small fw-bold text-muted text-uppercase">Data Final</label>
+                        <input type="date" name="data_fim" class="form-control" value="{{ filtros.data_fim }}">
+                    </div>
+                    <div class="col-md-12 text-end">
+                        <button type="submit" class="btn btn-primary px-5 fw-bold shadow-sm">
+                            <i class="bi bi-file-earmark-bar-graph me-2"></i>Gerar Relatório
+                        </button>
+                    </div>
+                </form>
+            </div>
+            <script>
+                function toggleTipoProvento() {
+                    const relatorio = document.getElementById('tipo_relatorio_select').value;
+                    const divTipo = document.getElementById('div_tipo_provento');
+                    if (relatorio === 'custodia') {
+                        divTipo.style.display = 'none';
+                    } else {
+                        divTipo.style.display = 'block';
+                    }
+                }
+                document.addEventListener("DOMContentLoaded", toggleTipoProvento);
+            </script>
+        </div>
+    </div>
+
+    {% if resultados_proventos is not none or resultados_custodia is not none %}
+    <!-- Tabela de Resultados -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center gap-2">
+                    <h5 class="mb-0 fw-bold text-secondary"><i class="bi bi-table me-2"></i>{% if filtros.tipo_relatorio
+                        == 'custodia' %}Custódia{% else %}Proventos{% endif %}</h5>
+                    <span class="badge bg-light text-muted fw-normal border">
+                        {% if filtros.data_inicio %}{{ filtros.data_inicio.split('-')|reverse|join('/') }}{% else
+                        %}Início{% endif %} a
+                        {% if filtros.data_fim %}{{ filtros.data_fim.split('-')|reverse|join('/') }}{% else %}Hoje{%
+                        endif %}
+                    </span>
+                </div>
+                <button onclick="window.print()" class="btn btn-outline-secondary btn-sm d-print-none">
+                    <i class="bi bi-printer me-1"></i> Imprimir / PDF
+                </button>
+            </div>
+            <div class="card-body p-0">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0" id="relatoriosTable" data-sort-dir="asc">
+                        {% if filtros.tipo_relatorio == 'proventos' %}
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 sortable" onclick="sortTable(0)">Ticker <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="sortable" onclick="sortTable(1)">Categoria <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="sortable" onclick="sortTable(2)">Tipo de Provento <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="text-end sortable col-qtd" onclick="sortTable(3)">Quantidade <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="text-end pe-4 sortable" onclick="sortTable(4)">Total Recebido <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if resultados_proventos %}
+                            {% set total_geral = namespace(value=0) %}
+                            {% for r in resultados_proventos %}
+                            <tr>
+                                <td class="ps-4" data-sort="{{ r.ticker }}">
+                                    <a href="{{ url_for('detalhe_ativo', ticker=r.ticker) }}"
+                                        class="text-decoration-none fw-bold text-primary">
+                                        {{ r.ticker }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary border">
+                                        {{ r.categoria_nome }}
+                                    </span>
+                                </td>
+                                <td data-sort="{{ r.tipo }}"><span class="badge bg-light text-dark border">{{ r.tipo
+                                        }}</span></td>
+                                <td class="text-end fw-bold text-secondary col-qtd" data-sort="{{ r.qtd_custodia }}">{{
+                                    r.qtd_custodia | clean_qtd }}</td>
+                                <td class="text-end pe-4 text-success fw-bold privacy-value" data-sort="{{ r.total }}">
+                                    R$ {{ r.total | br_format
+                                    }}</td>
+                            </tr>
+                            {% set total_geral.value = total_geral.value + r.total %}
+                            {% endfor %}
+                            <tr class="bg-light fw-bold total-row">
+                                <td colspan="4" class="text-end ps-4">TOTAL GERAL NO PERÍODO:</td>
+                                <td class="text-end pe-4 text-success privacy-value">R$ {{ total_geral.value | br_format
+                                    }}</td>
+                            </tr>
+                            {% else %}
+                            <tr class="empty-row">
+                                <td colspan="4" class="text-center py-4 text-muted">Nenhum registro encontrado para este
+                                    período.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                        {% else %}
+                        <thead class="bg-light">
+                            <tr>
+                                <th class="ps-4 sortable" onclick="sortTable(0)">Ticker <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="sortable" onclick="sortTable(1)">Categoria <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="text-end sortable col-qtd" onclick="sortTable(2)">Quantidade <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                                <th class="text-end pe-4 sortable" onclick="sortTable(3)">Custo de Compra <i
+                                        class="bi bi-arrow-down-up ms-1 text-muted small"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% if resultados_custodia %}
+                            {% set total_custo = namespace(value=0) %}
+                            {% for r in resultados_custodia %}
+                            <tr>
+                                <td class="ps-4" data-sort="{{ r.ticker }}">
+                                    <a href="{{ url_for('detalhe_ativo', ticker=r.ticker) }}"
+                                        class="text-decoration-none fw-bold text-primary">
+                                        {{ r.ticker }}
+                                    </a>
+                                </td>
+                                <td>
+                                    <span class="badge bg-secondary-subtle text-secondary border">
+                                        {{ r.categoria_nome }}
+                                    </span>
+                                </td>
+                                <td class="text-end fw-bold text-secondary col-qtd" data-sort="{{ r.qtd_custodia }}">{{
+                                    r.qtd_custodia | clean_qtd }}</td>
+                                <td class="text-end pe-4 text-primary fw-bold privacy-value"
+                                    data-sort="{{ r.custo_compra }}">R$ {{ r.custo_compra | br_format }}</td>
+                            </tr>
+                            {% set total_custo.value = total_custo.value + r.custo_compra %}
+                            {% endfor %}
+                            <tr class="bg-light fw-bold total-row">
+                                <td colspan="3" class="text-end ps-4">CUSTO TOTAL:</td>
+                                <td class="text-end pe-4 text-primary privacy-value">R$ {{ total_custo.value | br_format
+                                    }}</td>
+                            </tr>
+                            {% else %}
+                            <tr class="empty-row">
+                                <td colspan="3" class="text-center py-4 text-muted">Nenhum registro encontrado para este
+                                    período.</td>
+                            </tr>
+                            {% endif %}
+                        </tbody>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

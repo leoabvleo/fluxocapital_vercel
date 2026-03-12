@@ -1,0 +1,596 @@
+{% extends "base.html" %}
+
+{% block title %}Análise de Carteira - FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="row g-4 mb-4">
+    <!-- Distribuição por Categoria -->
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-pie-chart-fill text-primary me-2"></i>
+                <h5 class="mb-0 fw-bold">Distribuição por Categoria</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-0" style="min-height: 400px;">
+                <div id="piechart" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Evolução do Patrimônio (Custo) -->
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-graph-up-arrow text-info me-2"></i>
+                <h5 class="mb-0 fw-bold">Evolução do Patrimônio</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-0" style="min-height: 400px;">
+                <div id="chart_patrimonio" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Evolução de Proventos -->
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-bar-chart-line-fill text-success me-2"></i>
+                    <h5 class="mb-0 fw-bold">Evolução de Proventos</h5>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-success btn-proventos-toggle active"
+                        data-mode="mensal">Mensal</button>
+                    <button type="button" class="btn btn-outline-success btn-proventos-toggle"
+                        data-mode="anual">Anual</button>
+                </div>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-0" style="min-height: 400px;">
+                <div id="chart_dividendos" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Proventos por Categoria -->
+    <div class="col-lg-6">
+        <div class="card h-100 border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center">
+                <i class="bi bi-pie-chart text-success me-2"></i>
+                <h5 class="mb-0 fw-bold">Proventos por Categoria</h5>
+            </div>
+            <div class="card-body d-flex align-items-center justify-content-center p-0" style="min-height: 400px;">
+                <div id="chart_proventos_categoria" style="width: 100%; height: 400px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Evolução de Proventos por Categoria -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-bar-chart-steps text-warning me-2"></i>
+                    <h5 class="mb-0 fw-bold">Evolução de Proventos por Categoria</h5>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-warning btn-proventos-cat-toggle active"
+                        data-mode="mensal">Mensal</button>
+                    <button type="button" class="btn btn-outline-warning btn-proventos-cat-toggle"
+                        data-mode="anual">Anual</button>
+                </div>
+            </div>
+            <div class="card-body p-0" style="min-height: 420px;">
+                <div id="chart_proventos_cat_tempo" style="width: 100%; height: 420px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- Evolução de Aportes por Categoria -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-cash-stack text-info me-2"></i>
+                    <h5 class="mb-0 fw-bold">Evolução de Aportes por Categoria</h5>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-info btn-aportes-toggle active"
+                        data-mode="mensal">Mensal</button>
+                    <button type="button" class="btn btn-outline-info btn-aportes-toggle"
+                        data-mode="anual">Anual</button>
+                </div>
+            </div>
+            <div class="card-body p-0" style="min-height: 420px;">
+                <div id="chart_aportes_tempo" style="width: 100%; height: 420px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    <!-- DY & Yield on Cost (Renda Variável) -->
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-bottom d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center">
+                    <i class="bi bi-percent text-danger me-2"></i>
+                    <h5 class="mb-0 fw-bold">DY &amp; Yield on Cost &ndash; Renda Variável</h5>
+                    <span class="badge bg-secondary ms-2" style="font-size:.7rem;">Ações · FIIs</span>
+                </div>
+                <div class="btn-group btn-group-sm" role="group">
+                    <button type="button" class="btn btn-danger btn-dy-toggle active" data-mode="mensal">Mensal</button>
+                    <button type="button" class="btn btn-outline-danger btn-dy-toggle" data-mode="anual">Anual</button>
+                </div>
+            </div>
+            <div class="card-body p-0" style="min-height: 380px;">
+                <div id="chart_dy_yoc" style="width: 100%; height: 380px;"></div>
+            </div>
+            <!-- Tabela resumo por categoria (preenchida via JS) -->
+            <div class="card-footer bg-transparent border-top px-3 py-2">
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0" id="dy_tabela">
+                        <thead>
+                            <tr>
+                                <th>Categoria</th>
+                                <th class="text-end">Custo Total</th>
+                                <th class="text-end">Valor Mercado</th>
+                                <th class="text-end">Valorização</th>
+                                <th class="text-end">%</th>
+                                <th class="text-end">Proventos Totais</th>
+                                <th class="text-end">Yield on Cost</th>
+                                <th class="text-end">DY</th>
+                            </tr>
+                        </thead>
+                        <tbody id="dy_tabela_body">
+                            <tr>
+                                <td colspan="6" class="text-center text-muted">Carregando&hellip;</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+<script type="text/javascript">
+    google.charts.load('current', {
+        'packages': ['corechart'],
+        'language': 'pt-BR'
+    });
+
+    google.charts.setOnLoadCallback(drawCharts);
+
+    // Redraw charts on resize and theme toggle
+    window.addEventListener('resize', drawCharts);
+    document.getElementById('themeToggle').addEventListener('click', () => {
+        setTimeout(drawCharts, 100);
+    });
+
+    let proventosModo = 'mensal';
+    let proventosCatModo = 'mensal';
+    let aportesModo = 'mensal';
+    let dyYocModo = 'mensal';
+
+    // Toggle Mensal/Anual (Evolução de Proventos)
+    document.querySelectorAll('.btn-proventos-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-proventos-toggle').forEach(b => {
+                b.classList.remove('active', 'btn-success');
+                b.classList.add('btn-outline-success');
+            });
+            this.classList.remove('btn-outline-success');
+            this.classList.add('active', 'btn-success');
+            proventosModo = this.dataset.mode;
+            renderProventos();
+        });
+    });
+
+    // Toggle Mensal/Anual (Proventos por Categoria)
+    document.querySelectorAll('.btn-proventos-cat-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-proventos-cat-toggle').forEach(b => {
+                b.classList.remove('active', 'btn-warning');
+                b.classList.add('btn-outline-warning');
+            });
+            this.classList.remove('btn-outline-warning');
+            this.classList.add('active', 'btn-warning');
+            proventosCatModo = this.dataset.mode;
+            renderProventosCatTempo();
+        });
+    });
+
+    // Toggle Mensal/Anual (Aportes por Categoria)
+    document.querySelectorAll('.btn-aportes-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-aportes-toggle').forEach(b => {
+                b.classList.remove('active', 'btn-info');
+                b.classList.add('btn-outline-info');
+            });
+            this.classList.remove('btn-outline-info');
+            this.classList.add('active', 'btn-info');
+            aportesModo = this.dataset.mode;
+            renderAportesTempo();
+        });
+    });
+
+    // Toggle Mensal/Anual (DY & YoC)
+    document.querySelectorAll('.btn-dy-toggle').forEach(btn => {
+        btn.addEventListener('click', function () {
+            document.querySelectorAll('.btn-dy-toggle').forEach(b => {
+                b.classList.remove('active', 'btn-danger');
+                b.classList.add('btn-outline-danger');
+            });
+            this.classList.remove('btn-outline-danger');
+            this.classList.add('active', 'btn-danger');
+            dyYocModo = this.dataset.mode;
+            renderDyYoc();
+        });
+    });
+
+    function drawCharts() {
+        renderAlocacao();
+        renderProventos();
+        renderProventosPorCategoria();
+        renderPatrimonioAnual();
+        renderProventosCatTempo();
+        renderAportesTempo();
+        renderDyYoc();
+    }
+
+    function getChartColors(isDark) {
+        return {
+            text: isDark ? '#f8f9fa' : '#2c3e50',
+            grid: isDark ? '#495057' : '#e9ecef',
+            bg: 'transparent'
+        };
+    }
+
+    function renderAlocacao() {
+        var data = google.visualization.arrayToDataTable([
+            ['Categoria', 'Valor'],
+            {% for cat, val in dados_grafico.items() %}
+    ['{{ cat }}', {{ val }}],
+        {% endfor %}
+        ]);
+
+    const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+    const colors = getChartColors(isDark);
+
+    var options = {
+        pieHole: 0.5,
+        chartArea: { width: '90%', height: '80%' },
+        legend: {
+            position: 'right',
+            textStyle: { fontSize: 12, color: colors.text }
+        },
+        colors: ['#0d6efd', '#198754', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'],
+        backgroundColor: colors.bg,
+        pieSliceBorderColor: isDark ? '#343a40' : '#fff',
+        pieSliceText: 'percentage'
+    };
+    new google.visualization.PieChart(document.getElementById('piechart')).draw(data, options);
+    }
+
+    function renderProventos() {
+        const url = proventosModo === 'mensal' ? '/dados_dividendos_mensais' : '/dados_proventos_ano';
+        const label = proventosModo === 'mensal' ? 'Mês' : 'Ano';
+        const cor = proventosModo === 'mensal' ? '#198754' : '#0d6efd';
+
+        fetch(url)
+            .then(res => res.json())
+            .then(data => {
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', label);
+                dt.addColumn('number', 'Valor');
+                dt.addRows(data.rows);
+
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colors = getChartColors(isDark);
+
+                var options = {
+                    legend: 'none',
+                    colors: [cor],
+                    chartArea: { width: '85%', height: '70%', left: 80 },
+                    vAxis: {
+                        gridlines: { color: colors.grid },
+                        format: 'R$ #,###',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    hAxis: {
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    backgroundColor: colors.bg,
+                    animation: { duration: 500, startup: true }
+                };
+                new google.visualization.ColumnChart(document.getElementById('chart_dividendos')).draw(dt, options);
+            });
+    }
+
+    function renderPatrimonioAnual() {
+        fetch('/dados_patrimonio_ano')
+            .then(res => res.json())
+            .then(data => {
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', 'Ano');
+                dt.addColumn('number', 'Valor aplicado');
+                dt.addColumn('number', 'Proventos');
+                dt.addRows(data.rows);
+
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colors = getChartColors(isDark);
+
+                var options = {
+                    isStacked: true,
+                    colors: ['#2ecc71', '#1a7a4c'],
+                    chartArea: { width: '85%', height: '70%', left: 80 },
+                    legend: {
+                        position: 'top',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    vAxis: {
+                        gridlines: { color: colors.grid },
+                        format: '#,###',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    hAxis: {
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    backgroundColor: colors.bg,
+                    animation: { duration: 500, startup: true },
+                    bar: { groupWidth: '70%' }
+                };
+                new google.visualization.ColumnChart(document.getElementById('chart_patrimonio')).draw(dt, options);
+            });
+    }
+
+    function renderProventosPorCategoria() {
+        fetch('/dados_proventos_categoria')
+            .then(res => res.json())
+            .then(data => {
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', 'Categoria');
+                dt.addColumn('number', 'Valor');
+                dt.addRows(data.rows);
+
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colors = getChartColors(isDark);
+
+                var options = {
+                    pieHole: 0.5,
+                    chartArea: { width: '90%', height: '80%' },
+                    legend: {
+                        position: 'right',
+                        textStyle: { fontSize: 12, color: colors.text }
+                    },
+                    colors: ['#198754', '#0d6efd', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14'],
+                    backgroundColor: colors.bg,
+                    pieSliceBorderColor: isDark ? '#343a40' : '#fff',
+                    pieSliceText: 'percentage'
+                };
+                new google.visualization.PieChart(document.getElementById('chart_proventos_categoria')).draw(dt, options);
+            });
+    }
+
+    function renderProventosCatTempo() {
+        fetch('/dados_proventos_categoria_tempo?modo=' + proventosCatModo)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.rows || data.rows.length === 0) return;
+
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colors = getChartColors(isDark);
+                const palette = ['#198754', '#0d6efd', '#ffc107', '#0dcaf0', '#6610f2', '#fd7e14', '#dc3545', '#20c997'];
+
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', proventosCatModo === 'mensal' ? 'Mês' : 'Ano');
+                data.categorias.forEach(function (cat, i) {
+                    dt.addColumn('number', cat);
+                });
+                dt.addRows(data.rows);
+
+                let ticks = undefined;
+                if (proventosCatModo === 'mensal') {
+                    let maxVal = 0;
+                    data.rows.forEach(r => {
+                        let sum = 0;
+                        for (let i = 1; i < r.length; i++) sum += r[i];
+                        if (sum > maxVal) maxVal = sum;
+                    });
+                    ticks = [];
+                    for (let i = 0; i <= maxVal + 100; i += 100) {
+                        ticks.push({ v: i, f: 'R$ ' + i.toLocaleString('pt-BR') });
+                    }
+                }
+
+                var options = {
+                    isStacked: true,
+                    colors: palette.slice(0, data.categorias.length),
+                    chartArea: { width: '88%', height: '72%', left: 80 },
+                    legend: {
+                        position: 'top',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    vAxis: {
+                        gridlines: { color: colors.grid },
+                        ticks: ticks,
+                        format: 'R$ #,###',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    hAxis: {
+                        textStyle: { fontSize: 11, color: colors.text },
+                        slantedText: proventosCatModo === 'mensal',
+                        slantedTextAngle: 45
+                    },
+                    backgroundColor: colors.bg,
+                    animation: { duration: 500, startup: true },
+                    bar: { groupWidth: '70%' }
+                };
+                new google.visualization.ColumnChart(document.getElementById('chart_proventos_cat_tempo')).draw(dt, options);
+            });
+    }
+
+    function renderAportesTempo() {
+        fetch('/dados_aportes_tempo?modo=' + aportesModo)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.rows || data.rows.length === 0) return;
+
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colors = getChartColors(isDark);
+                const palette = ['#0dcaf0', '#0d6efd', '#6610f2', '#198754', '#fd7e14', '#ffc107', '#dc3545', '#20c997'];
+
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', aportesModo === 'mensal' ? 'Mês' : 'Ano');
+                data.categorias.forEach(function (cat) {
+                    dt.addColumn('number', cat);
+                });
+                dt.addRows(data.rows);
+
+                var options = {
+                    isStacked: true,
+                    colors: palette.slice(0, data.categorias.length),
+                    chartArea: { width: '88%', height: '72%', left: 80 },
+                    legend: {
+                        position: 'top',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    vAxis: {
+                        gridlines: { color: colors.grid },
+                        format: 'R$ #,###',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    hAxis: {
+                        textStyle: { fontSize: 11, color: colors.text },
+                        slantedText: aportesModo === 'mensal',
+                        slantedTextAngle: 45
+                    },
+                    backgroundColor: colors.bg,
+                    animation: { duration: 500, startup: true },
+                    bar: { groupWidth: '70%' }
+                };
+                new google.visualization.ColumnChart(document.getElementById('chart_aportes_tempo')).draw(dt, options);
+            });
+    }
+
+    function renderDyYoc() {
+        fetch('/dados_dy_yoc?modo=' + dyYocModo)
+            .then(res => res.json())
+            .then(data => {
+                if (!data.rows || data.rows.length === 0) return;
+
+                const isDark = document.documentElement.getAttribute('data-bs-theme') === 'dark';
+                const colors = getChartColors(isDark);
+                const palette = ['#dc3545', '#0d6efd', '#fd7e14', '#198754', '#6610f2', '#20c997'];
+
+                // --- Gráfico de linhas: YoC% por categoria ao longo do tempo ---
+                var dt = new google.visualization.DataTable();
+                dt.addColumn('string', dyYocModo === 'mensal' ? 'Mês' : 'Ano');
+                data.categorias.forEach(cat => dt.addColumn('number', 'YoC ' + cat + ' (%)'));
+                dt.addColumn('number', 'Média Geral (%)');
+
+                let totalCustoRV = 0;
+                data.resumo.forEach(r => totalCustoRV += r.custo);
+
+                const rowsWithAvg = data.rows.map(r => {
+                    let wSum = 0;
+                    for (let i = 0; i < data.categorias.length; i++) {
+                        wSum += r[i + 1] * (data.resumo[i].custo || 0);
+                    }
+                    const avg = totalCustoRV > 0 ? wSum / totalCustoRV : 0;
+                    return [...r, avg];
+                });
+                dt.addRows(rowsWithAvg);
+
+                const series = {};
+                data.categorias.forEach((_, i) => {
+                    series[i] = { color: palette[i % palette.length], lineWidth: 2, pointSize: 4 };
+                });
+                // Série da Média (última)
+                series[data.categorias.length] = {
+                    type: 'line',
+                    color: isDark ? '#ffffff' : '#2c3e50',
+                    lineWidth: 3,
+                    lineDashStyle: [4, 4],
+                    pointSize: 0
+                };
+
+                var options = {
+                    seriesType: 'bars',
+                    series: series,
+                    chartArea: { width: '85%', height: '72%', left: 55, right: 20 },
+                    legend: {
+                        position: 'top',
+                        textStyle: { fontSize: 11, color: colors.text }
+                    },
+                    vAxis: {
+                        title: 'YoC (%)',
+                        titleTextStyle: { color: colors.text, fontSize: 11 },
+                        gridlines: { color: colors.grid },
+                        format: '#.##\'%\'',
+                        textStyle: { fontSize: 10, color: colors.text }
+                    },
+                    hAxis: {
+                        textStyle: { fontSize: 11, color: colors.text },
+                        slantedText: dyYocModo === 'mensal',
+                        slantedTextAngle: 45
+                    },
+                    backgroundColor: colors.bg,
+                    animation: { duration: 500, startup: true }
+                };
+                new google.visualization.ComboChart(document.getElementById('chart_dy_yoc')).draw(dt, options);
+
+                // --- Tabela de resumo por categoria ---
+                const fmt = v => 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+                const fmtp = v => v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + '%';
+                const tbody = document.getElementById('dy_tabela_body');
+                tbody.innerHTML = '';
+                let totCusto = 0, totMerc = 0, totProv = 0;
+                data.resumo.forEach((r, i) => {
+                    totCusto += r.custo; totMerc += r.mercado; totProv += r.proventos;
+                    const valColor = r.valorizacao >= 0 ? 'text-success' : 'text-danger';
+                    const dot = `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${palette[i % palette.length]};margin-right:5px;"></span>`;
+                    tbody.innerHTML += `<tr>
+                        <td>${dot}${r.categoria}</td>
+                        <td class="text-end">${fmt(r.custo)}</td>
+                        <td class="text-end">${fmt(r.mercado)}</td>
+                        <td class="text-end ${valColor}">${fmt(r.valorizacao)}</td>
+                        <td class="text-end ${valColor} fw-bold">${fmtp(r.valorizacao_pct)}</td>
+                        <td class="text-end">${fmt(r.proventos)}</td>
+                        <td class="text-end fw-bold text-warning">${fmtp(r.yoc)}</td>
+                        <td class="text-end fw-bold text-info">${fmtp(r.dy)}</td>
+                    </tr>`;
+                });
+                // Linha de total
+                const totVal = totMerc - totCusto;
+                const totValPct = totCusto > 0 ? (totMerc / totCusto - 1) * 100 : 0;
+                const totYoc = totCusto > 0 ? totProv / totCusto * 100 : 0;
+                const totDy = totMerc > 0 ? totProv / totMerc * 100 : 0;
+                const totValColor = totVal >= 0 ? 'text-success' : 'text-danger';
+
+                tbody.innerHTML += `<tr class="fw-bold border-top">
+                    <td>Total RV</td>
+                    <td class="text-end">${fmt(totCusto)}</td>
+                    <td class="text-end">${fmt(totMerc)}</td>
+                    <td class="text-end ${totValColor}">${fmt(totVal)}</td>
+                    <td class="text-end ${totValColor}">${fmtp(totValPct)}</td>
+                    <td class="text-end">${fmt(totProv)}</td>
+                    <td class="text-end text-warning">${fmtp(totYoc)}</td>
+                    <td class="text-end text-info">${fmtp(totDy)}</td>
+                </tr>`;
+            });
+    }
+</script>
+{% endblock %}

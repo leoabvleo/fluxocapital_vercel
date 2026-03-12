@@ -1,0 +1,432 @@
+{% extends "base.html" %}
+
+{% block title %}Funcionários – FluxoCapital{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-3">
+    <h2 class="fw-bold mb-0 text-primary"><i class="bi bi-people me-2"></i>Controle de Funcionários</h2>
+    {% if is_admin_or_superadmin %}
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('funcionarios.folha') }}" class="btn btn-outline-primary">
+            <i class="bi bi-calendar2-check me-1"></i> Folha de Pagamento
+        </a>
+        <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalAddFuncionario">
+            <i class="bi bi-person-plus me-1"></i> Novo Funcionário
+        </button>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Cards de Resumo -->
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-primary text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="text-uppercase fw-bold opacity-75 mb-1" style="font-size:.75rem">Funcionários Ativos</h6>
+                <h3 class="fw-bold mb-0">{{ ativos|length }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-success text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="text-uppercase fw-bold opacity-75 mb-1" style="font-size:.75rem">Total Folha Bruta</h6>
+                <h3 class="fw-bold mb-0 privacy-value">R$ {{ total_folha | br_format }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-warning text-dark">
+            <div class="card-body p-3 text-center">
+                <h6 class="text-uppercase fw-bold opacity-75 mb-1" style="font-size:.75rem">INSS Estimado</h6>
+                <h3 class="fw-bold mb-0 privacy-value">R$ {{ total_inss | br_format }}</h3>
+            </div>
+        </div>
+    </div>
+    <div class="col-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-info text-white">
+            <div class="card-body p-3 text-center">
+                <h6 class="text-uppercase fw-bold opacity-75 mb-1" style="font-size:.75rem">Inativos</h6>
+                <h3 class="fw-bold mb-0">{{ inativos|length }}</h3>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Tabela de Funcionários Ativos -->
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-primary text-white border-0 py-2 d-flex justify-content-between align-items-center">
+        <h6 class="mb-0 fw-bold text-uppercase"><i class="bi bi-person-check me-2"></i>Funcionários Ativos</h6>
+        <span class="badge bg-white text-primary fw-bold">{{ ativos|length }}</span>
+    </div>
+    <div class="card-body p-0">
+        <div class="table-responsive">
+            <table class="table table-bordered align-middle mb-0 text-center table-sm" style="font-size:.88rem">
+                <thead class="bg-light">
+                    <tr class="text-uppercase fw-bold text-muted" style="font-size:.75rem">
+                        <th class="text-start ps-3">NOME</th>
+                        <th>CPF</th>
+                        <th>CARTEIRA</th>
+                        <th>SALÁRIO BRUTO</th>
+                        <th>INSS (%)</th>
+                        <th>LÍQ. ESTIMADO</th>
+                        <th>ADMISSÃO</th>
+                        {% if is_admin_or_superadmin %}<th>AÇÕES</th>{% endif %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in ativos %}
+                    <tr>
+                        <td class="text-start ps-3 fw-bold">{{ f.nome }}</td>
+                        <td class="text-muted">{{ f.cpf or '—' }}</td>
+                        <td>
+                            <span class="badge bg-secondary bg-opacity-75">{{ f.carteira_rel.nome if f.carteira_rel else
+                                '—' }}</span>
+                        </td>
+                        <td class="text-primary fw-bold privacy-value">R$ {{ f.salario_bruto | br_format }}</td>
+                        <td class="text-warning fw-bold privacy-value">
+                            R$ {{ (f.salario_bruto | float * f.inss_percent | float / 100) | br_format }}
+                            <small class="text-muted" style="font-size: .7rem">({{ f.inss_percent | br_format
+                                }}%)</small>
+                        </td>
+                        <td class="text-success fw-bold privacy-value">R$ {{ (f.salario_bruto | float * (1 -
+                            f.inss_percent | float / 100)) | br_format }}
+                        </td>
+                        <td>{{ f.data_admissao.strftime('%d/%m/%Y') if f.data_admissao else '—' }}</td>
+                        {% if is_admin_or_superadmin %}
+                        <td>
+                            <div class="d-flex gap-1 justify-content-center">
+                                <a href="{{ url_for('funcionarios.lancamentos', id=f.id) }}"
+                                    class="btn btn-outline-secondary btn-sm" title="Lançamentos">
+                                    <i class="bi bi-cash-coin"></i>
+                                </a>
+                                <button class="btn btn-outline-primary btn-sm" title="Editar" data-bs-toggle="modal"
+                                    data-bs-target="#modalEditFuncionario{{ f.id }}">
+                                    <i class="bi bi-pencil"></i>
+                                </button>
+                                <form action="{{ url_for('funcionarios.toggle_funcionario', id=f.id) }}" method="POST"
+                                    onsubmit="return confirm('Desativar {{ f.nome }}?')">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm" title="Desativar">
+                                        <i class="bi bi-person-x"></i>
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                        {% endif %}
+                    </tr>
+
+                    <!-- Modal Editar Funcionário -->
+                    {% if is_admin_or_superadmin %}
+                    <div class="modal fade" id="modalEditFuncionario{{ f.id }}" tabindex="-1" aria-hidden="true">
+                        <div class="modal-dialog modal-dialog-centered">
+                            <div class="modal-content border-0 shadow">
+                                <div class="modal-header border-0 bg-light py-2">
+                                    <h6 class="modal-title fw-bold text-uppercase"><i
+                                            class="bi bi-pencil me-1"></i>Editar {{ f.nome }}</h6>
+                                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                </div>
+                                <div class="modal-body py-3">
+                                    <form action="{{ url_for('funcionarios.edit_funcionario', id=f.id) }}"
+                                        method="POST">
+                                        <div class="mb-2">
+                                            <label class="form-label fw-bold" style="font-size:.75rem">NOME</label>
+                                            <input type="text" name="nome" class="form-control form-control-sm"
+                                                value="{{ f.nome }}" required>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label fw-bold" style="font-size:.75rem">CPF *</label>
+                                            <input type="text" name="cpf" class="form-control form-control-sm"
+                                                value="{{ f.cpf or '' }}" placeholder="000.000.000-00" maxlength="14"
+                                                required autocomplete="off" inputmode="numeric">
+                                            <div class="invalid-feedback">CPF obrigatório e deve ser válido
+                                                (000.000.000-00).</div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-6 mb-2">
+                                                <label class="form-label fw-bold"
+                                                    style="font-size:.75rem">CARTEIRA</label>
+                                                <select name="carteira_id" class="form-select form-select-sm" required>
+                                                    {% for c in carteiras %}
+                                                    <option value="{{ c.id }}" {% if f.carteira_id==c.id %}selected{%
+                                                        endif %}>{{ c.nome }}</option>
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                            <div class="col-6 mb-2">
+                                                <label class="form-label fw-bold" style="font-size:.75rem">CHAVE
+                                                    PIX</label>
+                                                <input type="text" name="chave_pix" class="form-control form-control-sm"
+                                                    value="{{ f.chave_pix or '' }}"
+                                                    placeholder="CPF, E-mail, Celular...">
+                                            </div>
+                                        </div>
+                                        <div class="row g-2">
+                                            <div class="col-6 mb-2">
+                                                <label class="form-label fw-bold" style="font-size:.75rem">SALÁRIO
+                                                    BRUTO</label>
+                                                <input type="text" name="salario_bruto"
+                                                    class="form-control form-control-sm"
+                                                    value="{{ f.salario_bruto | br_format }}" required>
+                                            </div>
+                                            <div class="col-6 mb-2">
+                                                <label class="form-label fw-bold" style="font-size:.75rem">DATA
+                                                    ADMISSÃO</label>
+                                                <input type="date" name="data_admissao"
+                                                    class="form-control form-control-sm"
+                                                    value="{{ f.data_admissao.strftime('%Y-%m-%d') if f.data_admissao else '' }}">
+                                            </div>
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label fw-bold" style="font-size:.75rem">% DESCONTO
+                                                INSS</label>
+                                            <input type="text" name="inss_percent" class="form-control form-control-sm"
+                                                value="{{ f.inss_percent | br_format }}" required>
+                                        </div>
+                                        <button type="submit" class="btn btn-primary w-100 fw-bold mt-1">SALVAR</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="text-center py-4 text-muted small">
+                            <i class="bi bi-person-x me-1"></i>Nenhum funcionário ativo cadastrado.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+                {% if ativos %}
+                <tfoot class="bg-light-subtle">
+                    <tr class="fw-bold small">
+                        <td class="text-end pe-2" colspan="3">TOTAIS:</td>
+                        <td class="text-primary privacy-value">R$ {{ total_folha | br_format }}</td>
+                        <td class="text-warning privacy-value">R$ {{ total_inss | br_format }}</td>
+                        <td class="text-success privacy-value">R$ {{ (total_folha - total_inss) | br_format }}</td>
+                        <td colspan="2"></td>
+                    </tr>
+                </tfoot>
+                {% endif %}
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Funcionários Inativos (collapsible) -->
+{% if inativos %}
+<div class="card border-0 shadow-sm mb-4">
+    <div class="card-header border-0 py-2 bg-secondary bg-opacity-10">
+        <button class="btn btn-link p-0 fw-bold text-secondary text-decoration-none" data-bs-toggle="collapse"
+            data-bs-target="#collapseInativos">
+            <i class="bi bi-person-dash me-2"></i>Funcionários Inativos ({{ inativos|length }})
+            <i class="bi bi-chevron-down ms-1"></i>
+        </button>
+    </div>
+    <div class="collapse" id="collapseInativos">
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0 text-center" style="font-size:.85rem">
+                    <thead class="bg-light">
+                        <tr class="text-uppercase fw-bold text-muted" style="font-size:.75rem">
+                            <th class="text-start ps-3">NOME</th>
+                            <th>CPF</th>
+                            <th>CARTEIRA</th>
+                            <th>SALÁRIO BRUTO</th>
+                            <th>ADMISSÃO</th>
+                            {% if is_admin_or_superadmin %}<th>AÇÕES</th>{% endif %}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in inativos %}
+                        <tr class="text-muted">
+                            <td class="text-start ps-3">{{ f.nome }}</td>
+                            <td>{{ f.cpf or '—' }}</td>
+                            <td>
+                                <span class="badge bg-secondary bg-opacity-75">{{ f.carteira_rel.nome if f.carteira_rel
+                                    else '—' }}</span>
+                            </td>
+                            <td class="privacy-value">R$ {{ f.salario_bruto | br_format }}</td>
+                            <td>{{ f.data_admissao.strftime('%d/%m/%Y') if f.data_admissao else '—' }}</td>
+                            {% if is_admin_or_superadmin %}
+                            <td>
+                                <form action="{{ url_for('funcionarios.toggle_funcionario', id=f.id) }}" method="POST">
+                                    <button type="submit" class="btn btn-outline-success btn-sm" title="Reativar">
+                                        <i class="bi bi-person-check me-1"></i>Reativar
+                                    </button>
+                                </form>
+                            </td>
+                            {% endif %}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal para Adicionar Funcionário -->
+{% if is_admin_or_superadmin %}
+<div class="modal fade" id="modalAddFuncionario" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header border-0 bg-light py-2">
+                <h6 class="modal-title fw-bold text-uppercase"><i class="bi bi-person-plus me-2"></i>Novo Funcionário
+                </h6>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body py-3">
+                <form action="{{ url_for('funcionarios.add_funcionario') }}" method="POST">
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size:.75rem">NOME COMPLETO *</label>
+                        <input type="text" name="nome" class="form-control form-control-sm"
+                            placeholder="Ex: João da Silva" required>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size:.75rem">CPF *</label>
+                        <input type="text" name="cpf" class="form-control form-control-sm" placeholder="000.000.000-00"
+                            maxlength="14" required autocomplete="off" inputmode="numeric">
+                        <div class="invalid-feedback">CPF obrigatório e deve ser válido (000.000.000-00).</div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">CARTEIRA</label>
+                            <select name="carteira_id" class="form-select form-select-sm" required>
+                                {% for c in carteiras %}
+                                <option value="{{ c.id }}" {% if c.nome==c_ativa or (c_ativa=='Consolidada' and
+                                    loop.first) %}selected{% endif %}>{{ c.nome }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">CHAVE PIX</label>
+                            <input type="text" name="chave_pix" class="form-control form-control-sm"
+                                placeholder="CPF, E-mail, Celular...">
+                        </div>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">SALÁRIO BRUTO (R$) *</label>
+                            <input type="text" name="salario_bruto" class="form-control form-control-sm"
+                                placeholder="1.621,00" required>
+                        </div>
+                        <div class="col-md-6 mb-2">
+                            <label class="form-label fw-bold" style="font-size:.75rem">DATA DE ADMISSÃO</label>
+                            <input type="date" name="data_admissao" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="mb-2">
+                        <label class="form-label fw-bold" style="font-size:.75rem">% DESCONTO INSS</label>
+                        <input type="text" name="inss_percent" class="form-control form-control-sm" value="7,50"
+                            required>
+                    </div>
+                    <button type="submit" class="btn btn-primary w-100 fw-bold mt-2">
+                        <i class="bi bi-person-plus me-1"></i>CADASTRAR FUNCIONÁRIO
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    (function () {
+        /**
+         * Validação matemática completa de CPF
+         */
+        function isValidCPF(str) {
+            var cpf = str.replace(/\D/g, '');
+            if (cpf.length !== 11 || /^(\d)\1+$/.test(cpf)) return false;
+
+            var add = 0;
+            for (var i = 0; i < 9; i++) add += parseInt(cpf.charAt(i)) * (10 - i);
+            var rev = 11 - (add % 11);
+            if (rev === 10 || rev === 11) rev = 0;
+            if (rev !== parseInt(cpf.charAt(9))) return false;
+
+            add = 0;
+            for (var i = 0; i < 10; i++) add += parseInt(cpf.charAt(i)) * (11 - i);
+            rev = 11 - (add % 11);
+            if (rev === 10 || rev === 11) rev = 0;
+            if (rev !== parseInt(cpf.charAt(10))) return false;
+
+            return true;
+        }
+
+        /**
+         * Máscara progressiva
+         */
+        function maskCPF(v) {
+            v = v.replace(/\D/g, ""); // REMOVE LETRAS IMEDIATAMENTE
+            if (v.length > 11) v = v.substring(0, 11);
+            if (v.length <= 3) return v;
+            if (v.length <= 6) return v.substring(0, 3) + "." + v.substring(3);
+            if (v.length <= 9) return v.substring(0, 3) + "." + v.substring(3, 6) + "." + v.substring(6);
+            return v.substring(0, 3) + "." + v.substring(3, 6) + "." + v.substring(6, 9) + "-" + v.substring(9);
+        }
+
+        /**
+         * Aplica comportamento aos inputs
+         */
+        function initCPF() {
+            var inputs = document.querySelectorAll('input[name="cpf"]');
+            for (var i = 0; i < inputs.length; i++) {
+                (function (input) {
+                    if (input.getAttribute('data-cpf-ok')) return;
+                    input.setAttribute('data-cpf-ok', 'true');
+
+                    // 1. Bloqueio de letras e máscara ao digitar
+                    input.addEventListener('input', function () {
+                        var start = this.selectionStart;
+                        var oldLen = this.value.length;
+                        this.value = maskCPF(this.value);
+                        var newLen = this.value.length;
+
+                        // Ajusta cursor se necessário
+                        if (start !== null) {
+                            var pos = start + (newLen - oldLen);
+                            this.setSelectionRange(pos, pos);
+                        }
+
+                        if (!this.value) this.classList.remove('is-invalid');
+                    });
+
+                    // 2. Validação ao sair (blur)
+                    input.addEventListener('blur', function () {
+                        if (!isValidCPF(this.value)) {
+                            this.classList.add('is-invalid');
+                        } else {
+                            this.classList.remove('is-invalid');
+                        }
+                    });
+
+                    // 3. Validação ao enviar
+                    var form = input.closest('form');
+                    if (form) {
+                        form.addEventListener('submit', function (e) {
+                            if (!isValidCPF(input.value)) {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                input.classList.add('is-invalid');
+                                input.focus();
+                            }
+                        });
+                    }
+                })(inputs[i]);
+            }
+        }
+
+        // Execução em múltiplos estágios para garantir carregamento
+        initCPF();
+        document.addEventListener('DOMContentLoaded', initCPF);
+        window.addEventListener('load', initCPF);
+    })();
+</script>
+{% endblock %}

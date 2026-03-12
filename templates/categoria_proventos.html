@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+
+{% block title %}Categorias de Proventos - FluxoCapital{% endblock %}
+
+{% block extra_head %}
+<!-- DataTables CSS -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.6/css/dataTables.bootstrap5.min.css">
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h2 class="h4 mb-0">Gerenciar Categorias de Proventos</h2>
+        {% if is_admin_or_superadmin %}
+        <div>
+            <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal"
+                data-bs-target="#addCategoriaModal">
+                <i class="bi bi-plus-lg"></i> Nova Categoria
+            </button>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Tabela de Categorias -->
+    <div class="card shadow-sm border-0">
+        <div class="card-body p-0">
+            <table id="tabelaCategoriasProventos"
+                class="table table-bordered align-middle mb-0 text-center spreadsheet-table table-sm">
+                <thead class="bg-light">
+                    <tr class="text-uppercase tiny fw-bold text-muted">
+                        <th style="width: 10%">ID</th>
+                        <th style="width: 60%">NOME</th>
+                        <th style="width: 10%">TIPO</th>
+                        <th style="width: 20%">AÇÃO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for cat in categorias %}
+                    <tr>
+                        <td>{{ cat.id }}</td>
+                        <!-- NOME (Editável) -->
+                        <!-- NOME (Editável se permissão) -->
+                        <td class="p-0" data-order="{{ cat.nome }}">
+                            {% if is_superadmin or (cat.carteira_id and cat.carteira_id in
+                            current_user.carteiras|map(attribute='id')) %}
+                            <form action="{{ url_for('update_categoria_provento') }}" method="POST">
+                                <input type="hidden" name="id" value="{{ cat.id }}">
+                                <input type="text" name="valor" value="{{ cat.nome }}"
+                                    class="form-control form-control-sm border-0 bg-transparent text-center"
+                                    onchange="this.form.submit()">
+                            </form>
+                            {% else %}
+                            <span class="text-muted">{{ cat.nome }}</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- TIPO (Indicador Global/Privada) -->
+                        <td>
+                            {% if not cat.carteira_id %}
+                            <span class="badge bg-secondary tiny">Global</span>
+                            {% else %}
+                            <span class="badge bg-info tiny">Privada</span>
+                            {% endif %}
+                        </td>
+
+                        <!-- AÇÃO -->
+                        <td>
+                            {% if is_superadmin or (cat.carteira_id and cat.carteira_id in
+                            current_user.carteiras|map(attribute='id')) %}
+                            <form action="{{ url_for('delete_categoria_provento', id=cat.id) }}" method="POST"
+                                onsubmit="return confirm('Tem certeza que deseja remover esta categoria?')">
+                                <button type="submit" class="btn btn-link text-danger p-0">
+                                    <i class="bi bi-trash"></i>
+                                </button>
+                            </form>
+                            {% else %}
+                            <i class="bi bi-lock text-muted" title="Apenas leitura"></i>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Adicionar Categoria -->
+<div class="modal fade" id="addCategoriaModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('add_categoria_provento') }}" method="POST">
+                <div class="modal-header">
+                    <h5 class="modal-title">Nova Categoria de Provento</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Nome</label>
+                        <input type="text" name="nome" class="form-control" required placeholder="Ex: Dividendos">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Salvar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .spreadsheet-table {
+        font-size: 0.9rem;
+    }
+
+    .tiny {
+        font-size: 0.75rem;
+    }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="https://code.jquery.com/jquery-3.7.0.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#tabelaCategoriasProventos').DataTable({
+            "order": [[1, "asc"]],
+            "pageLength": 25,
+            "stateSave": true,
+            "lengthChange": false,
+            "language": {
+                "sEmptyTable": "Nenhum registro encontrado",
+                "sInfo": "Mostrando de _START_ até _END_ de _TOTAL_ registros",
+                "sInfoEmpty": "Mostrando 0 até 0 de 0 registros",
+                "sInfoFiltered": "(Filtrados de _MAX_ registros)",
+                "sSearch": "Pesquisar",
+                "oPaginate": {
+                    "sNext": "Próximo",
+                    "sPrevious": "Anterior"
+                }
+            },
+            "columnDefs": [
+                { "orderable": false, "targets": [2] }
+            ],
+            "dom": "<'row p-3'<'col-md-6'f><'col-md-6'p>>rt"
+        });
+    });
+</script>
+{% endblock %}

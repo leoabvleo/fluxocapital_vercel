@@ -14,7 +14,7 @@ Agora o sistema conta com integração contínua e deploy automático.
 
 ### 🔑 Credenciais de Acesso (Produção):
 - **Usuário:** `admin`
-- **Senha:** `admin` (ou a senha padrão do seu dump)
+- **Senha:** `8mH29DAC`
 
 ---
 

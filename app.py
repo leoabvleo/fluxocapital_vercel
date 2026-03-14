@@ -127,21 +127,27 @@ def get_last_modification_time():
         base_dir = os.path.dirname(os.path.abspath(__file__))
         max_mtime = 0
         for root, dirs, files in os.walk(base_dir):
-            # Ignora pastas de cache, ambientes virtuais e controle de versão
             if any(ignore in root for ignore in ['.git', '__pycache__', 'venv', '.venv', '.vercel', 'node_modules']):
                 continue
             for file in files:
-                # Verifica apenas arquivos de código relevantes
                 if file.endswith(('.py', '.html', '.css', '.js', '.sh', '.md')):
                     filepath = os.path.join(root, file)
                     mtime = os.path.getmtime(filepath)
                     if mtime > max_mtime:
                         max_mtime = mtime
         if max_mtime > 0:
-            return datetime.fromtimestamp(max_mtime).strftime('%d/%m/%Y %H:%M')
+            dt = datetime.fromtimestamp(max_mtime)
+            # AWS Lambda (e Vercel) intencionalmente substitui a data de modificação 
+            # de todos os arquivos no deploy para uma data fixa (geralmente 20/10/2018 ou 1980) 
+            # para garantir hashes consistentes. Se a data for antiga, estamos na nuvem.
+            if dt.year > 2020:
+                return dt.strftime('%d/%m/%Y %H:%M')
     except Exception:
         pass
-    return datetime.now().strftime('%d/%m/%Y %H:%M')
+    
+    # Se estivermos no Vercel (onde os arquivos caem em 2018) ou houver erro, 
+    # retorna a data/hora em que a instância subiu ou tenta obter via env vars.
+    return datetime.now().strftime('%d/%m/%Y %H:%M') + " (Nuvem)"
 
 # Calculado na inicialização da aplicação
 LAST_DEPLOY_TIME = get_last_modification_time()

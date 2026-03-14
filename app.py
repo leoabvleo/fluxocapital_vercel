@@ -72,8 +72,8 @@ from funcionarios import funcionarios_bp
 db.init_app(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
-login_manager.login_message = "Por favor, faça login para acessar esta página."
-login_manager.login_message_category = "info"
+login_manager.login_message = None
+# login_manager.login_message_category = "info"
 app.register_blueprint(finance_bp)
 app.register_blueprint(funcionarios_bp)
 

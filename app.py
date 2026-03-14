@@ -121,6 +121,31 @@ def clean_qtd(value):
     except: return value
 
 # --- CONTEXT PROCESSOR ---
+def get_last_modification_time():
+    """Retorna a data e hora do arquivo mais recente modificado no projeto."""
+    try:
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        max_mtime = 0
+        for root, dirs, files in os.walk(base_dir):
+            # Ignora pastas de cache, ambientes virtuais e controle de versão
+            if any(ignore in root for ignore in ['.git', '__pycache__', 'venv', '.venv', '.vercel', 'node_modules']):
+                continue
+            for file in files:
+                # Verifica apenas arquivos de código relevantes
+                if file.endswith(('.py', '.html', '.css', '.js', '.sh', '.md')):
+                    filepath = os.path.join(root, file)
+                    mtime = os.path.getmtime(filepath)
+                    if mtime > max_mtime:
+                        max_mtime = mtime
+        if max_mtime > 0:
+            return datetime.fromtimestamp(max_mtime).strftime('%d/%m/%Y %H:%M')
+    except Exception:
+        pass
+    return datetime.now().strftime('%d/%m/%Y %H:%M')
+
+# Calculado na inicialização da aplicação
+LAST_DEPLOY_TIME = get_last_modification_time()
+
 @app.context_processor
 def inject_carteira():
     if current_user.is_authenticated:
@@ -159,7 +184,7 @@ def inject_carteira():
         'is_superadmin': is_superadmin(),
         'is_admin_or_superadmin': is_admin_or_superadmin(),
         'now_year': datetime.now().year,
-        'ultima_atualizacao': datetime.now().strftime('%d/%m/%Y %H:%M')
+        'ultima_atualizacao': LAST_DEPLOY_TIME
     }
 
 # --- CÁLCULOS ---

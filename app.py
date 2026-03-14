@@ -146,7 +146,10 @@ def get_last_modification_time():
         pass
     
     # Se estivermos no Vercel (onde os arquivos caem em 2018) ou houver erro, 
-    # retorna a data/hora em que a instância subiu ou tenta obter via env vars.
+    # retorna a data/hora em que a instância subiu ajustada para o fuso brasileiro (-03:00).
+    if os.environ.get('VERCEL'):
+        hora_brasil = datetime.utcnow() - timedelta(hours=3)
+        return hora_brasil.strftime('%d/%m/%Y %H:%M') + " (Nuvem)"
     return datetime.now().strftime('%d/%m/%Y %H:%M') + " (Nuvem)"
 
 # Calculado na inicialização da aplicação

@@ -1,4 +1,5 @@
 import os
+import subprocess
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -122,7 +123,20 @@ def clean_qtd(value):
 
 # --- CONTEXT PROCESSOR ---
 def get_last_modification_time():
-    """Retorna a data e hora do arquivo mais recente modificado no projeto."""
+    """Retorna a data e hora do último deploy ou modificação de arquivo."""
+    # 1. Tenta obter a data do último commit via Git (mais estável e preciso)
+    try:
+        data_git = subprocess.check_output(
+            ['git', 'log', '-1', '--format=%cd', '--date=format:%d/%m/%Y %H:%M'],
+            stderr=subprocess.DEVNULL,
+            text=True
+        ).strip()
+        if data_git:
+            return data_git
+    except Exception:
+        pass
+
+    # 2. Fallback: Procura o arquivo mais recente modificado no projeto
     try:
         base_dir = os.path.dirname(os.path.abspath(__file__))
         max_mtime = 0
@@ -139,18 +153,17 @@ def get_last_modification_time():
             dt = datetime.fromtimestamp(max_mtime)
             # AWS Lambda (e Vercel) intencionalmente substitui a data de modificação 
             # de todos os arquivos no deploy para uma data fixa (geralmente 20/10/2018 ou 1980) 
-            # para garantir hashes consistentes. Se a data for antiga, estamos na nuvem.
-            if dt.year > 2020:
+            # para garantir hashes consistentes. Se a data for recente, estamos na nuvem.
+            if dt.year >= 2024:
                 return dt.strftime('%d/%m/%Y %H:%M')
     except Exception:
         pass
     
-    # Se estivermos no Vercel (onde os arquivos caem em 2018) ou houver erro, 
-    # retorna a data/hora em que a instância subiu ajustada para o fuso brasileiro (-03:00).
-    if os.environ.get('VERCEL'):
-        hora_brasil = datetime.utcnow() - timedelta(hours=3)
-        return hora_brasil.strftime('%d/%m/%Y %H:%M') + " (Nuvem)"
-    return datetime.now().strftime('%d/%m/%Y %H:%M') + " (Nuvem)"
+    # 3. Fallback final: Data/hora em que a instância subiu ajustada para o fuso brasileiro (-03:00).
+    fuso_brasil = timedelta(hours=-3)
+    agora_brasil = datetime.utcnow() + fuso_brasil
+    tag = " (Boot)" if os.environ.get('VERCEL') else ""
+    return agora_brasil.strftime('%d/%m/%Y %H:%M') + tag
 
 # Calculado na inicialização da aplicação
 LAST_DEPLOY_TIME = get_last_modification_time()

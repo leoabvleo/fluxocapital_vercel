@@ -287,35 +287,44 @@ def generate_captcha():
         
     # Carrega uma fonte (tenta carregar uma comum no Mac/Linux ou usa default)
     font = None
+    font_size = 36
     try:
         # Fontes comuns no Mac e Linux
         font_paths = [
             "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/System/Library/Fonts/Helvetica.ttc",
             "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Bold.ttf",
             "Arial.ttf",
             "DejaVuSans.ttf"
         ]
         for path in font_paths:
             if os.path.exists(path):
-                font = ImageFont.truetype(path, 28)
+                font = ImageFont.truetype(path, font_size)
                 break
+        
         if not font:
-            font = ImageFont.load_default()
-    except:
+            # Pillow 10.1.0+ suporta size no load_default
+            try:
+                font = ImageFont.load_default(size=font_size)
+            except:
+                font = ImageFont.load_default()
+    except Exception as e:
+        logging.error(f"Erro ao carregar fonte do captcha: {e}")
         font = ImageFont.load_default()
 
     # Centraliza o texto (approx)
-    # No PHP o cálculo era: $x = ($image_width - $textbox[4])/2;
     # Usando textbbox no Pillow 10+
     try:
         bbox = draw.textbbox((0, 0), captcha_text, font=font)
         tw = bbox[2] - bbox[0]
         th = bbox[3] - bbox[1]
     except:
-        # Fallback para versões antigas se houver
+        # Fallback para versões antigas
         tw, th = draw.textsize(captcha_text, font=font) if hasattr(draw, 'textsize') else (10 * chars, 20)
         
-    draw.text(((width - tw) / 2, (height - th) / 2 - 5), captcha_text, fill=text_color, font=font)
+    # Ajuste fino na posição Y para centralizar melhor fontes grandes
+    draw.text(((width - tw) / 2, (height - th) / 2 - 4), captcha_text, fill=text_color, font=font)
     
     # Salva no buffer
     img_io = io.BytesIO()

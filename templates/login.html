@@ -69,7 +69,7 @@
             <div class="mb-3">
                 <label class="form-label small fw-bold">Código de Segurança (CAPTCHA)</label>
                 <div class="d-flex align-items-center gap-2">
-                    <img src="{{ url_for('generate_captcha') }}" alt="Captcha" class="rounded border" id="captcha-img">
+                    <img src="{{ url_for('generate_captcha') }}" alt="Captcha" class="rounded border" id="captcha-img" width="120" height="40" style="image-rendering: -webkit-optimize-contrast;">
                     <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('captcha-img').src='{{ url_for('generate_captcha') }}?' + Math.random();" title="Atualizar Captcha">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
                             <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>

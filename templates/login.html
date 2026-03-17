@@ -66,6 +66,20 @@
                 <input type="password" name="password" class="form-control" placeholder="Senha" required>
             </div>
 
+            <div class="mb-3">
+                <label class="form-label small fw-bold">Código de Segurança (CAPTCHA)</label>
+                <div class="d-flex align-items-center gap-2">
+                    <img src="{{ url_for('generate_captcha') }}" alt="Captcha" class="rounded border" id="captcha-img">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('captcha-img').src='{{ url_for('generate_captcha') }}?' + Math.random();" title="Atualizar Captcha">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
+                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                        </svg>
+                    </button>
+                    <input type="text" name="captcha" class="form-control" placeholder="Código" required maxlength="3" autocomplete="off">
+                </div>
+            </div>
+
             <button type="submit" class="btn btn-primary w-100">Entrar</button>
         </form>
 

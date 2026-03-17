@@ -8,7 +8,7 @@ import requests
 import pandas as pd
 import io
 from datetime import datetime, timedelta
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, session, Response
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, UserMixin, login_user, login_required, logout_user, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -17,6 +17,9 @@ from sqlalchemy import func
 import re
 import unicodedata
 from decimal import Decimal, ROUND_HALF_UP
+import random
+import string
+from PIL import Image, ImageDraw, ImageFont
 
 app = Flask(__name__, static_folder='static', template_folder='templates')
 app.config['SECRET_KEY'] = 'pPC294C4P0VnybJI4' 
@@ -256,10 +259,82 @@ def calcular_consolidado(c_ativa=None):
 
 # --- ROTAS ---
 
+@app.route('/captcha')
+def generate_captcha():
+    # Parâmetros conforme o código PHP original
+    width = 120
+    height = 40
+    chars = 3
+    possible = '23456789bcdfghjkmnpqrstvwxyz'
+    bg_color = (176, 196, 222)  # imagecolorallocate($image, 176, 196, 222)
+    text_color = (20, 40, 100) # #142864 -> (20, 40, 100)
+    
+    # Gera o código
+    captcha_text = "".join(random.choice(possible) for _ in range(chars))
+    session['captcha_code'] = captcha_text
+    
+    # Cria a imagem
+    image = Image.new('RGB', (width, height), bg_color)
+    draw = ImageDraw.Draw(image)
+    
+    # Adiciona ruído (linhas conforme PHP: $random_lines = 15)
+    for _ in range(15):
+        x1 = random.randint(0, width)
+        y1 = random.randint(0, height)
+        x2 = random.randint(0, width)
+        y2 = random.randint(0, height)
+        draw.line([(x1, y1), (x2, y2)], fill=text_color, width=1)
+        
+    # Carrega uma fonte (tenta carregar uma comum no Mac/Linux ou usa default)
+    font = None
+    try:
+        # Fontes comuns no Mac e Linux
+        font_paths = [
+            "/System/Library/Fonts/Supplemental/Arial.ttf",
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
+            "Arial.ttf",
+            "DejaVuSans.ttf"
+        ]
+        for path in font_paths:
+            if os.path.exists(path):
+                font = ImageFont.truetype(path, 28)
+                break
+        if not font:
+            font = ImageFont.load_default()
+    except:
+        font = ImageFont.load_default()
+
+    # Centraliza o texto (approx)
+    # No PHP o cálculo era: $x = ($image_width - $textbox[4])/2;
+    # Usando textbbox no Pillow 10+
+    try:
+        bbox = draw.textbbox((0, 0), captcha_text, font=font)
+        tw = bbox[2] - bbox[0]
+        th = bbox[3] - bbox[1]
+    except:
+        # Fallback para versões antigas se houver
+        tw, th = draw.textsize(captcha_text, font=font) if hasattr(draw, 'textsize') else (10 * chars, 20)
+        
+    draw.text(((width - tw) / 2, (height - th) / 2 - 5), captcha_text, fill=text_color, font=font)
+    
+    # Salva no buffer
+    img_io = io.BytesIO()
+    image.save(img_io, 'JPEG', quality=80)
+    img_io.seek(0)
+    return Response(img_io.getvalue(), mimetype='image/jpeg')
+
 @app.route('/login', methods=['GET', 'POST'])
 @log_action("Login de usuário")
 def login():
     if request.method == 'POST':
+        # Verifica CAPTCHA
+        user_captcha = request.form.get('captcha', '').strip().lower()
+        correct_captcha = session.get('captcha_code', '').lower()
+        
+        if not user_captcha or user_captcha != correct_captcha:
+            flash("Código CAPTCHA inválido. Tente novamente.", "danger")
+            return render_template('login.html', now_year=datetime.now().year, ultima_atualizacao=LAST_DEPLOY_TIME)
+
         username = request.form.get('username')
         u = Usuario.query.filter_by(username=username).first()
         if u and check_password_hash(u.password, request.form['password']):
@@ -268,6 +343,8 @@ def login():
                 return render_template('login.html')
             login_user(u)
             session.permanent = True
+            # Limpa captcha após login bem sucedido
+            session.pop('captcha_code', None)
             return redirect(url_for('index'))
         logging.warning(f"FALHA_LOGIN: {username} - IP: {request.remote_addr}")
         flash("Credenciais inválidas.", "danger")

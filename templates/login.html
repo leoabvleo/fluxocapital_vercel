@@ -93,7 +93,8 @@
                 backdrop-filter: none;
             }
 
-            .form-control, .input-group-text {
+            .form-control,
+            .input-group-text {
                 padding: 18px 20px;
                 font-size: 1.3rem;
             }
@@ -113,7 +114,7 @@
                 width: 160px;
                 height: 60px;
             }
-            
+
             .text-muted {
                 margin-top: 2rem !important;
             }
@@ -125,7 +126,7 @@
 
     <div class="login-card">
         <div class="text-center mb-4">
-            <h3 class="fw-bold" style="color: rgb(90, 2, 178);">FluxoCapital</h3>
+            <h3 class="fw-bold" style="color: rgb(5, 230, 54);">FluxoCapital</h3>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
@@ -144,27 +145,36 @@
             <div class="mb-3">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-                    <input type="text" name="username" class="form-control" placeholder="" required aria-label="Usuário">
+                    <input type="text" name="username" class="form-control" placeholder="" required
+                        aria-label="Usuário">
                 </div>
             </div>
             <div class="mb-3">
                 <div class="input-group">
                     <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                    <input type="password" name="password" class="form-control" placeholder="" required aria-label="Senha">
+                    <input type="password" name="password" class="form-control" placeholder="" required
+                        aria-label="Senha">
                 </div>
             </div>
 
             <div class="mb-3">
                 <label class="form-label small fw-bold">Código de Segurança (CAPTCHA)</label>
                 <div class="d-flex align-items-center gap-2">
-                    <img src="{{ url_for('generate_captcha') }}" alt="Captcha" class="rounded border" id="captcha-img" width="120" height="40" style="image-rendering: -webkit-optimize-contrast;">
-                    <button type="button" class="btn btn-sm btn-outline-secondary" onclick="document.getElementById('captcha-img').src='{{ url_for('generate_captcha') }}?' + Math.random();" title="Atualizar Captcha">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-                            <path fill-rule="evenodd" d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/>
-                            <path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/>
+                    <img src="{{ url_for('generate_captcha') }}" alt="Captcha" class="rounded border" id="captcha-img"
+                        width="120" height="40" style="image-rendering: -webkit-optimize-contrast;">
+                    <button type="button" class="btn btn-sm btn-outline-secondary"
+                        onclick="document.getElementById('captcha-img').src='{{ url_for('generate_captcha') }}?' + Math.random();"
+                        title="Atualizar Captcha">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
+                            class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
+                            <path fill-rule="evenodd"
+                                d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
+                            <path
+                                d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
                         </svg>
                     </button>
-                    <input type="text" name="captcha" class="form-control" placeholder="Código" required maxlength="3" autocomplete="off">
+                    <input type="text" name="captcha" class="form-control" placeholder="Código" required maxlength="3"
+                        autocomplete="off">
                 </div>
             </div>
 
@@ -172,7 +182,8 @@
         </form>
 
         <div class="mt-4 text-center text-muted small" style="font-size: 0.75rem;">
-            &copy; {{ now_year }} FluxoCapital. <span class="badge text-bg-secondary" style="font-size: 0.65rem;">Beta Version</span>
+            &copy; {{ now_year }} FluxoCapital. <span class="badge text-bg-secondary" style="font-size: 0.65rem;">Beta
+                Version</span>
             <br>
             Último Deploy: 18/03/2026 10:58:29
         </div>

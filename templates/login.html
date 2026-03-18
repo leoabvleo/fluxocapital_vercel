@@ -3,84 +3,81 @@
 
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - FluxoCapital</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <style>
         body {
-            background: linear-gradient(135deg, #f0f2f5 0%, #e2e8f0 100%);
+            background-color: #f0f2f5;
             height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
         }
 
         .login-card {
-            width: 90%;
+            width: 100%;
             max-width: 400px;
-            padding: 2.5rem;
+            padding: 40px 30px;
             border-radius: 20px;
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
+            background: white;
             box-shadow: 0 15px 35px rgba(0, 0, 0, 0.1);
-            transition: transform 0.3s ease;
-        }
-
-        .login-card:hover {
-            transform: translateY(-5px);
-        }
-
-        .btn-primary {
-            padding: 12px;
-            font-weight: 600;
-            border-radius: 10px;
-            background: rgb(90, 2, 178);
-            border: none;
             transition: all 0.3s ease;
         }
 
-        .btn-primary:hover {
-            background: rgb(70, 2, 140);
-            box-shadow: 0 5px 15px rgba(90, 2, 178, 0.3);
-        }
-
-        .form-control {
-            border-radius: 10px;
-            padding: 10px 15px;
-            border: 1px solid #e2e8f0;
-        }
-
-        .form-control:focus {
-            box-shadow: 0 0 0 3px rgba(90, 2, 178, 0.1);
-            border-color: rgb(90, 2, 178);
-        }
-
         .input-group-text {
-            background-color: transparent;
-            border-right: none;
-            color: #64748b;
+            background-color: rgb(90, 2, 178);
+            color: white;
+            border: none;
+            width: 50px;
+            justify-content: center;
             border-radius: 10px 0 0 10px;
         }
 
-        .input-group .form-control {
-            border-left: none;
+        .form-control {
+            border: 1px solid #dee2e6;
+            padding: 12px 15px;
             border-radius: 0 10px 10px 0;
+        }
+        
+        #captcha-input {
+            border-radius: 10px;
+        }
+
+        .form-control:focus {
+            box-shadow: none;
+            border-color: rgb(90, 2, 178);
+        }
+
+        .btn-primary {
+            background-color: rgb(90, 2, 178);
+            border: none;
+            padding: 14px;
+            font-weight: 600;
+            border-radius: 12px;
+            transition: all 0.2s;
+        }
+
+        .btn-primary:hover {
+            background-color: rgb(70, 2, 140);
+            transform: translateY(-1px);
+            box-shadow: 0 5px 15px rgba(90, 2, 178, 0.3);
         }
 
         .hp-field {
             display: none;
         }
 
-        /* Melhorias para Mobile - Ocupa a tela toda */
+        /* Responsividade para Celular - Ocupa a tela toda */
         @media (max-width: 576px) {
             body {
                 background: white;
             }
 
             .login-card {
-                width: 100%;
                 height: 100vh;
                 max-width: none;
                 border-radius: 0;
@@ -88,20 +85,21 @@
                 display: flex;
                 flex-direction: column;
                 justify-content: center;
-                padding: 1.5rem;
-                background: white;
-                backdrop-filter: none;
+                padding: 2rem;
             }
 
-            .form-control,
-            .input-group-text {
+            .form-control, .input-group-text {
                 padding: 18px 20px;
-                font-size: 1.3rem;
+                font-size: 1.25rem;
+            }
+            
+            .input-group-text {
+                width: 60px;
             }
 
             .btn-primary {
                 padding: 18px;
-                font-size: 1.4rem;
+                font-size: 1.3rem;
                 margin-top: 1rem;
             }
 
@@ -114,25 +112,21 @@
                 width: 160px;
                 height: 60px;
             }
-
-            .text-muted {
-                margin-top: 2rem !important;
-            }
         }
     </style>
 </head>
 
 <body>
 
-    <div class="login-card">
-        <div class="text-center mb-4">
-            <h3 class="fw-bold" style="color: rgb(5, 230, 54);">FluxoCapital</h3>
+    <div class="login-card text-center">
+        <div class="mb-4">
+            <h3 class="fw-bold" style="color: rgb(90, 2, 178);">FluxoCapital</h3>
         </div>
 
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}
-        <div class="alert alert-{{ category }} small py-2 text-center">{{ message }}</div>
+        <div class="alert alert-{{ category }} small py-2 text-center border-0 rounded-pill mb-3">{{ message }}</div>
         {% endfor %}
         {% endif %}
         {% endwith %}
@@ -142,50 +136,34 @@
                 <input type="text" name="email_api" autocomplete="off" tabindex="-1">
             </div>
 
-            <div class="mb-3">
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
-                    <input type="text" name="username" class="form-control" placeholder="" required
-                        aria-label="Usuário">
-                </div>
-            </div>
-            <div class="mb-3">
-                <div class="input-group">
-                    <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
-                    <input type="password" name="password" class="form-control" placeholder="" required
-                        aria-label="Senha">
-                </div>
+            <div class="input-group mb-3">
+                <span class="input-group-text"><i class="bi bi-person-fill"></i></span>
+                <input type="text" name="username" class="form-control" placeholder="Usuário" required aria-label="Usuário">
             </div>
 
-            <div class="mb-3">
-                <label class="form-label small fw-bold">Código de Segurança (CAPTCHA)</label>
-                <div class="d-flex align-items-center gap-2">
-                    <img src="{{ url_for('generate_captcha') }}" alt="Captcha" class="rounded border" id="captcha-img"
-                        width="120" height="40" style="image-rendering: -webkit-optimize-contrast;">
-                    <button type="button" class="btn btn-sm btn-outline-secondary"
-                        onclick="document.getElementById('captcha-img').src='{{ url_for('generate_captcha') }}?' + Math.random();"
-                        title="Atualizar Captcha">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor"
-                            class="bi bi-arrow-clockwise" viewBox="0 0 16 16">
-                            <path fill-rule="evenodd"
-                                d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z" />
-                            <path
-                                d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z" />
-                        </svg>
+            <div class="input-group mb-4">
+                <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                <input type="password" name="password" class="form-control" placeholder="Senha" required aria-label="Senha">
+            </div>
+
+            <div class="mb-4 text-start">
+                <label class="form-label small fw-bold text-muted ms-1">Código de Segurança (CAPTCHA)</label>
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <img src="{{ url_for('generate_captcha') }}" id="captcha-img" class="border rounded" alt="CAPTCHA" style="image-rendering: -webkit-optimize-contrast;">
+                    <button type="button" class="btn btn-sm btn-link text-decoration-none p-0" tabindex="-1" onclick="document.getElementById('captcha-img').src='{{ url_for('generate_captcha') }}?' + Math.random();">
+                        <i class="bi bi-arrow-clockwise"></i> Atualizar
                     </button>
-                    <input type="text" name="captcha" class="form-control" placeholder="Código" required maxlength="3"
-                        autocomplete="off">
                 </div>
+                <input type="text" name="captcha" id="captcha-input" class="form-control text-center fw-bold" placeholder="Digite o código" required maxlength="3" style="letter-spacing: 5px;">
             </div>
 
-            <button type="submit" class="btn btn-primary w-100">Entrar</button>
+            <button type="submit" class="btn btn-primary w-100 shadow-sm">Entrar</button>
         </form>
 
-        <div class="mt-4 text-center text-muted small" style="font-size: 0.75rem;">
-            &copy; {{ now_year }} FluxoCapital. <span class="badge text-bg-secondary" style="font-size: 0.65rem;">Beta
-                Version</span>
+        <div class="mt-5 text-muted tiny" style="font-size: 0.75rem;">
+            &copy; {{ now_year }} FluxoCapital. <span class="badge text-bg-secondary" style="font-size: 0.65rem;">Beta Version</span>
             <br>
-            Último Deploy: 18/03/2026 10:58:29
+            Último Deploy: 18/03/2026 11:08:56
         </div>
     </div>
 

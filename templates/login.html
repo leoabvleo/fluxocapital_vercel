@@ -72,6 +72,33 @@
         .hp-field {
             display: none;
         }
+
+        /* Melhorias para Mobile - Deixa tudo bem grande */
+        @media (max-width: 576px) {
+            .login-card {
+                width: 95%;
+                padding: 2rem 1.5rem;
+            }
+
+            .form-control, .input-group-text {
+                padding: 15px 20px;
+                font-size: 1.2rem;
+            }
+
+            .btn-primary {
+                padding: 15px;
+                font-size: 1.2rem;
+            }
+
+            h3 {
+                font-size: 2rem;
+            }
+
+            #captcha-img {
+                width: 150px;
+                height: 50px;
+            }
+        }
     </style>
 </head>
 
@@ -128,7 +155,7 @@
         <div class="mt-4 text-center text-muted small" style="font-size: 0.75rem;">
             &copy; {{ now_year }} FluxoCapital. <span class="badge text-bg-secondary" style="font-size: 0.65rem;">Beta Version</span>
             <br>
-            Último Deploy: 18/03/2026 10:29:37
+            Último Deploy: 18/03/2026 10:41:36
         </div>
     </div>
 

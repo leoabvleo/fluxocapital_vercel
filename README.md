@@ -83,4 +83,4 @@ Acesse: [http://localhost:5001](http://localhost:5001)
 - **Logs**: Registros detalhados em `login_errors.log` e `user_actions.log`.
 - **Vercel**: Ambiente seguro com HTTPS automático.
 
-editado em davinci
+removido

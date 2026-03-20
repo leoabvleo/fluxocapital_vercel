@@ -83,4 +83,8 @@ Acesse: [http://localhost:5001](http://localhost:5001)
 - **Logs**: Registros detalhados em `login_errors.log` e `user_actions.log`.
 - **Vercel**: Ambiente seguro com HTTPS automático.
 
-mais um teste
+---
+
+## 👨‍💻 Autor
+
+Projeto criado e desenvolvido por **Leonardo Americo Bezerra Viana**
